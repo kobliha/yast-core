@@ -1071,6 +1071,7 @@ YBlock::toXml( std::ostream & str, int indent ) const
     if( !m_name.empty() ) {
 	str << " name=\"" << m_name << "\"";
     }
+    commentToXml(str);
     str << ">\n";
 
     indent += 2;

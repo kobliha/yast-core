@@ -117,7 +117,9 @@ YStatement::toStream (std::ostream & str) const
 std::ostream &
 YStatement::toXml( std::ostream & str, int /*indent*/ ) const
 {
-    return str << "<statement line=" << m_line << "/>";
+    str << "<statement line=" << m_line ;
+    commentToXml(str);
+    return str << "/>";
 }
 
 // ------------------------------------------------------------------
@@ -161,7 +163,9 @@ YSBreak::toStream (std::ostream & str) const
 std::ostream &
 YSBreak::toXml (std::ostream & str, int /*indent*/ ) const
 {
-    return str << "<break/>";
+    str << "<break";
+    commentToXml(str);
+    return str << "/>";
 }
 
 // ------------------------------------------------------------------
@@ -205,7 +209,9 @@ YSContinue::toStream (std::ostream & str) const
 std::ostream &
 YSContinue::toXml (std::ostream & str, int /*indent*/ ) const
 {
-    return str << "<continue/>";
+    str << "<continue";
+    commentToXml(str);
+    return str << "/>";
 }
 
 // ------------------------------------------------------------------
@@ -253,7 +259,9 @@ YSExpression::toStream (std::ostream & str) const
 std::ostream &
 YSExpression::toXml( std::ostream & str, int indent ) const
 {
-    str << "<expr>";
+    str << "<expr";
+    commentToXml(str);
+    str << ">";
     m_expr->toXml( str, indent );
     return str << "</expr>";
 }
@@ -416,7 +424,9 @@ YSReturn::toStream (std::ostream & str) const
 std::ostream &
 YSReturn::toXml (std::ostream & str, int indent ) const
 {
-    str << Xmlcode::spaces( indent ) << "<return>";
+    str << Xmlcode::spaces( indent ) << "<return";
+    commentToXml(str);
+    str << ">";
     if (m_value != 0)
         m_value->toXml( str, 0 );
     return str << "</return>";
@@ -525,7 +535,9 @@ YSFunction::toStream (std::ostream & str) const
 std::ostream &
 YSFunction::toXml( std::ostream & str, int indent ) const
 {
-    str << "<fun_def name=\"" << m_entry->name() << "\">\n";
+    str << "<fun_def name=\"" << m_entry->name() << "\"";
+    commentToXml(str);
+    str << ">\n";
 
     function()->toXml( str, indent+2 );
 
@@ -573,6 +585,7 @@ std::ostream &
 YSTypedef::toXml( std::ostream & str, int /*indent*/ ) const
 {
     str << "<typedef name=\"" << m_name << "\"";
+    commentToXml(str);
     m_type->toXml( str, 0 );
     return str << "/>";
 }
@@ -636,7 +649,9 @@ YSAssign::toStream (std::ostream & str) const
 std::ostream &
 YSAssign::toXml( std::ostream & str, int /*indent*/ ) const
 {
-    str << "<assign name=\"" << m_entry->toString (false /*definition*/) << "\">";
+    str << "<assign name=\"" << m_entry->toString (false /*definition*/) << "\"";
+    commentToXml(str);
+    str << ">";
     m_code->toXml( str, 0 );
     return str << "</assign>";
 }
@@ -744,7 +759,9 @@ YSBracket::toStream (std::ostream & str) const
 std::ostream &
 YSBracket::toXml( std::ostream & str, int indent ) const
 {
-    str << "<bracket>";
+    str << "<bracket";
+    commentToXml(str);
+    str << ">";
     str << "<lhs>";
     Xmlcode::writeEntry( str, m_entry );
     str << "<arg>"; m_arg->toXml( str, 0 ); str << "</arg>";
@@ -1008,7 +1025,9 @@ YSIf::toStream (std::ostream & str) const
 std::ostream &
 YSIf::toXml (std::ostream & str, int indent ) const
 {
-    str << "<if>";
+    str << "<if";
+    commentToXml(str);
+    str << ">";
 
     m_condition->toXml( str, 0 );
 
@@ -1135,7 +1154,9 @@ YSWhile::toStream (std::ostream & str) const
 std::ostream &
 YSWhile::toXml (std::ostream & str, int indent ) const
 {
-    str << "<while>\n";
+    str << "<while";
+    commentToXml(str);
+    str << ">\n";
     str << Xmlcode::spaces( indent+2 ) << "<cond>"; m_condition->toXml(str, 0 ); str << "</cond>\n";
     if (m_loop) {
 	str << Xmlcode::spaces( indent+2 ) << "<do>";
@@ -1280,7 +1301,9 @@ YSRepeat::toStream (std::ostream & str) const
 std::ostream &
 YSRepeat::toXml (std::ostream & str, int indent ) const
 {
-    str << "<repeat>\n";
+    str << "<repeat";
+    commentToXml(str);
+    str << ">\n";
     if (m_loop != 0)
     {
         str << Xmlcode::spaces( indent+2 ) << "<do>\n";
@@ -1437,7 +1460,9 @@ YSDo::toStream (std::ostream & str) const
 std::ostream &
 YSDo::toXml( std::ostream & str, int indent ) const
 {
-    str << "<do>";
+    str << "<do";
+    commentToXml(str);
+    str << ">";
     if (m_loop != 0)
     {
 	m_loop->toXml( str, indent );
@@ -1555,7 +1580,10 @@ YSTextdomain::toStream (std::ostream & str) const
 std::ostream &
 YSTextdomain::toXml (std::ostream & str, int /*indent*/ ) const
 {
-    return str << "<textdomain name=\"" << m_domain.asString() << "\"/>";
+    str << "<textdomain name=\"" << m_domain.asString() << "\"";
+    commentToXml(str);
+    str << "/>";
+    return str;
 }
 
 
@@ -1619,6 +1647,7 @@ std::ostream &
 YSInclude::toXml( std::ostream & str, int /*indent*/ ) const
 {
     str << "<include";
+    commentToXml(str);
     if (m_skipped) str << " skipped=\"1\"";
     return str << " name=\"" << m_filename.asString() << "\"/>";
 }
@@ -1777,7 +1806,9 @@ std::ostream &
 YSImport::toXml( std::ostream & str, int /*indent*/ ) const
 {
     Xmlcode::pushNamespace (nameSpace());				// see YBlock::toXml(str) for popUptoNamespace()
-    return str << "<import name=\"" << m_name.asString() << "\"/>";
+    str << "<import name=\"" << m_name.asString() << "\"";
+    commentToXml(str);
+    return str << "/>";
 }
 
 
@@ -1943,7 +1974,9 @@ YSSwitch::toStream (std::ostream & str) const
 std::ostream &
 YSSwitch::toXml( std::ostream & str, int indent ) const
 {
-    str << "<switch>";
+    str << "<switch";
+    commentToXml(str);
+    str << ">";
 
     str << "<cond>";
     m_condition->toXml( str, 0 );

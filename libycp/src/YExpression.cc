@@ -148,6 +148,7 @@ std::ostream &
 YEVariable::toXml( std::ostream & str, int /*indent*/ ) const
 {
     str << "<variable name=\"";
+    commentToXml(str);
     str << m_entry->toString (false /*definition*/);
     str << "\" category=\"" << m_entry->catString();
     return str << "\"/>";
@@ -220,7 +221,9 @@ YEReference::toStream (std::ostream & str) const
 std::ostream &
 YEReference::toXml (std::ostream & str, int /*indent*/ ) const
 {
-    str << "<yereference>";
+    str << "<yereference";
+    commentToXml(str);
+    str << ">";
     Xmlcode::writeEntry (str, m_entry);
     return str << "</yereference>";
 }
@@ -399,7 +402,9 @@ YETerm::toXml (std::ostream & str, int /*indent*/ ) const
 	count++;
 	codep = codep->next;
     }
-    str << "<yeterm name=\"" << m_name << "\" args=\"" << count << "\">";
+    str << "<yeterm name=\"" << m_name << "\" args=\"" << count << "\"";
+    commentToXml(str);
+    str << ">";
     Xmlcode::writeYCodelist (str, m_parameters);
     return str << "</yeterm>";
 }
@@ -536,7 +541,9 @@ YECompare::toStream (std::ostream & str) const
 std::ostream &
 YECompare::toXml (std::ostream & str, int /*indent*/ ) const
 {
-    str << "<compare op=\"" << Xmlcode::xmlify( compare_op_string( m_op ) ) << "\">";
+    str << "<compare op=\"" << Xmlcode::xmlify( compare_op_string( m_op ) ) << "\"";
+    commentToXml(str);
+    str << ">";
     str << "<lhs>"; m_left->toXml( str, 0 ); str << "</lhs>";
     str << "<rhs>"; m_right->toXml( str, 0 ); str << "</rhs>";
     return str << "</compare>";
@@ -650,7 +657,9 @@ std::ostream &
 YELocale::toXml (std::ostream & str, int /*indent*/ ) const
 {
     str << "<locale domain=\"" << m_domain->first << "\" text=\"" << Xmlcode::xmlify( m_singular )
-	<< "\" plural=\"" << Xmlcode::xmlify( m_plural ) << "\">";
+	<< "\" plural=\"" << Xmlcode::xmlify( m_plural ) << "\"";
+    commentToXml(str);
+    str << ">";
     m_count->toXml( str, 0 );
     str << "</locale>";
     return str;
@@ -803,7 +812,9 @@ YEList::toXml (std::ostream & str, int /*indent*/ ) const
 	count++;
 	codep = codep->next;
     }
-    str << "<list size=\"" << count << "\">";
+    str << "<list size=\"" << count << "\"";
+    commentToXml(str);
+    str << ">";
     Xmlcode::writeYCodelist( str, m_first );
     return str << "</list>";
 }
@@ -977,7 +988,9 @@ YEMap::toXml( std::ostream & str, int /*indent*/ ) const
 	count++;
 	mapp = mapp->next;
     }
-    str << "<map size=\"" << count << "\">";
+    str << "<map size=\"" << count << "\"";
+    commentToXml(str);
+    str << ">";
 
     mapp = m_first;
     while (mapp)
@@ -1201,7 +1214,9 @@ YEPropagate::toStream (std::ostream & str) const
 std::ostream &
 YEPropagate::toXml (std::ostream & str, int /*indent*/ ) const
 {
-    str << "<yepropagate from=\"" << Xmlcode::xmlify( m_from->toString() ) << "\" to=\"" << Xmlcode::xmlify( m_to->toString() ) << "\">";
+    str << "<yepropagate from=\"" << Xmlcode::xmlify( m_from->toString() ) << "\" to=\"" << Xmlcode::xmlify( m_to->toString() ) << "\"";
+    commentToXml(str);
+    str << ">";
     m_value->toXml( str, 0 );
     return str << "</yepropagate>";
 }
@@ -1302,6 +1317,7 @@ std::ostream &
 YEUnary::toXml (std::ostream & str, int /*indent*/ ) const
 {
     str << "<yeunary";
+    commentToXml(str);
     extern StaticDeclaration static_declarations;
     static_declarations.writeXmlDeclaration( str, m_decl );
     str << ">";
@@ -1417,6 +1433,7 @@ std::ostream &
 YEBinary::toXml (std::ostream & str, int /*indent*/ ) const
 {
     str << "<yebinary";
+    commentToXml(str);
     extern StaticDeclaration static_declarations;
     static_declarations.writeXmlDeclaration (str, m_decl);
     str << ">";
@@ -1535,7 +1552,9 @@ YETriple::toStream (std::ostream & str) const
 std::ostream &
 YETriple::toXml (std::ostream & str, int /*indent*/ ) const
 {
-    str << "<yetriple>";
+    str << "<yetriple";
+    commentToXml(str);
+    str << ">";
     str << "<cond>"; m_expr->toXml( str, 0); str << "</cond>";
     str << "<true>"; m_true->toXml( str, 0 ); str << "</true>";
     str << "<false>"; m_false->toXml( str, 0); str << "</false>";
@@ -1642,7 +1661,9 @@ YEIs::toStream (std::ostream & str) const
 std::ostream &
 YEIs::toXml (std::ostream & str, int /*indent*/ ) const
 {
-    str << "<yeis "; m_type->toXml( str, 0); str << ">";
+    str << "<yeis "; m_type->toXml( str, 0); str;
+    commentToXml(str);
+    str << ">";
     str << "<expr>"; m_expr->toXml( str, 0); str << "</expr>";
     return str << "</yeis>";
 }
@@ -1697,7 +1718,9 @@ YEReturn::toStream (std::ostream & str) const
 std::ostream &
 YEReturn::toXml (std::ostream & str, int /*indent*/ ) const
 {
-    str << "<yereturn>";
+    str << "<yereturn";
+    commentToXml(str);
+    str << ">";
     m_expr->toXml( str, 0 );
     return str << "</yereturn>";
 }
@@ -1869,6 +1892,7 @@ std::ostream &
 YEBracket::toXml (std::ostream & str, int /*indent*/ ) const
 {
     str << "<yebracket ";
+    commentToXml(str);
     m_resultType->toXml( str, 0);
     str << ">";
     m_var->toXml( str, 0 );		// variable
@@ -1948,6 +1972,8 @@ std::ostream &
 YEBuiltin::toXml( std::ostream & str, int indent ) const
 {
     str << "<builtin name=\"" << StaticDeclaration::Decl2String(m_decl) << "\"";
+
+    commentToXml(str);
 
     if (m_parameterblock != 0)
     {
@@ -2995,6 +3021,7 @@ std::ostream &
 YECall::toXml (std::ostream & str, int /*indent*/ ) const
 {
     str << "<call";
+    commentToXml(str);
     if (!m_sentry->nameSpace()->name().empty()) {
 	str << " ns=\"" << m_sentry->nameSpace()->name() << "\"";
     }

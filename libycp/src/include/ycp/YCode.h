@@ -77,7 +77,11 @@ class YCode : public Rep
   , public MemUsage
 #endif
 {
+private:
+    const char * comment_before;
+    const char * comment_after;
     REP_BODY(YCode);
+
 public:
     enum ykind {
 	yxError = 0,
@@ -200,6 +204,12 @@ public:
      */
     virtual std::ostream & toXml (std::ostream & str, int indent ) const = 0;
 
+
+    /**
+     * Writes comment attributes to xml element
+     */
+    std::ostream & commentToXml (std::ostream & str ) const;
+
     /**
      * Is this code constant?
      *
@@ -250,6 +260,19 @@ public:
     * \return type of the value to be returned after calling \ref evaluate
     */
   virtual constTypePtr type() const;
+
+   /** Setter for comment before code
+    *  Take care about deallocation of pointer.
+    * \param comment pointer to comment
+    */
+    void setCommentBefore( const char * comment);
+
+   /** Setter for comment after code
+    *  Take care about deallocation of pointer.
+    * \param comment pointer to comment
+    */
+    void setCommentAfter( const char * comment);
+
 };
 
 

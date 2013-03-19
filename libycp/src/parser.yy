@@ -50,9 +50,7 @@
 #include <string>
 #include <list>
 
-#ifndef DO_DEBUG
-#define DO_DEBUG 0
-#endif
+#define DO_DEBUG 1
 
 #include "YCP.h"
 #include "ycp/Scanner.h"
@@ -74,7 +72,7 @@
 #include "ycp/Parser.h"
 
 // compile with full debug info, enable with YCP_YYDEBUG=1 in run-time env
-#define YYDEBUG 0
+#define YYDEBUG 1
 #define YYERROR_VERBOSE 1
 #define YYINITDEPTH 1000
 #define YYMAXDEPTH 50000
@@ -273,8 +271,11 @@ static int do_while_count = 0;
 %}
 
  /* expect one shift-reduce conflict (a dangling else) */
-%expect 2
+%expect 28
 %pure_parser
+%debug
+%verbose
+%error-verbose
 
   /* SCANNER_ERROR is returned when yylex does not have a valid token */
 %token  SCANNER_ERROR
@@ -294,6 +295,10 @@ static int do_while_count = 0;
  /* known entry  */
 %token  IDENTIFIER
 
+ /* comments */
+ /* before and after expression */
+%token  COMMENT_BEFORE COMMENT_AFTER
+
  /* constants  */
  /* the C_xxx tokens return a YConst(), STRING is handled special */
  /*  since we need it also as non-ycp value */
@@ -303,6 +308,8 @@ static int do_while_count = 0;
 
  /* bindings in order of precedence, lowest first  */
 
+%left COMMENT_AFTER
+%right COMMENT_BEFORE
 %right '='
 %left '?'
 %left OR
@@ -327,8 +334,9 @@ static int do_while_count = 0;
 /* ---------------------------------------------------------------------- */
 %%
 
-ycp:	compact_expression
+ycp:	expression 
 	    {
+    /* less strict requirerement for expression as we need comments also on top level */
 		inside_module = false; 		// reset for next call
 		p_parser->m_result = ($1.t == 0) ? 0 : $1.c;
 		p_parser->m_current_block = 0;
@@ -377,7 +385,27 @@ ycp:	compact_expression
      or 'infix' (which might need a lookahead token)  */
 
 expression:
-	compact_expression
+  comment_before expression
+      {
+        $2.c->setCommentBefore($1.v.sval);
+        $$ = $2;
+      }
+| COMMENT_AFTER expression
+      {
+        $2.c->setCommentBefore($1.v.sval);
+        $$ = $2;
+      }
+| expression COMMENT_AFTER
+      {
+        $1.c->setCommentAfter($2.v.sval);
+        $$ = $1;
+      }
+| expression COMMENT_BEFORE
+      {
+        $1.c->setCommentAfter($2.v.sval);
+        $$ = $1;
+      }
+|	compact_expression
 |	casted_expression
 |	infix_expression
 |	bracket_expression
@@ -1063,6 +1091,49 @@ block:
 		y2debug ("block: (%s:%s)", $$.c ? $$.c->toString().c_str() : "<nil>", $$.t ? $$.t->toString().c_str() : "<ERR>");
 #endif
 	    }
+|	'{' COMMENT_AFTER
+	    {
+		if (declared_return_type == 0)
+		{
+		    // this is error, propagate
+		    $$.t = 0;
+		    break;
+		}
+		
+		constTypePtr b_t = declared_return_type;
+		
+		if ( ! declared_return_type->isUnspec ())
+		{
+		    declared_return_type = Type::Unspec;
+		}
+		else if (p_parser->m_block_stack != NULL)
+		{
+		    b_t = p_parser->m_block_stack->theBlock->type ();
+		}
+
+		start_block (p_parser, b_t);
+
+		// verify, if we are in switch. if yes, say we are
+		// the block of the switch
+		
+		if (in_switch) {
+#if DO_DEBUG
+		    y2debug ("Setting block for switch");
+#endif
+		    p_parser->m_switch_stack->statement->
+			setBlock (p_parser->m_block_stack->theBlock);
+		    in_switch = false;
+		}
+		
+	    }
+	block_end
+	    {
+    $4.c->setCommentBefore($2.v.sval);
+		$$ = $4;
+#if DO_DEBUG
+		y2debug ("block: (%s:%s)", $$.c ? $$.c->toString().c_str() : "<nil>", $$.t ? $$.t->toString().c_str() : "<ERR>");
+#endif
+	    }
 |	QUOTED_BLOCK
 	    {
 		if (declared_return_type == 0)
@@ -1094,7 +1165,143 @@ block:
 ;
 
 block_end:
-	statements '}'
+	statements comment_before '}'
+	    {
+		// end of block
+		//
+		// pop block from block stack
+		// unlink local symbols from symbol table
+
+		blockstack_t *top = p_parser->m_block_stack;
+		bool is_include = true;
+
+		if (top == 0
+		    || (top->includeDepth == 0))
+		{
+#if DO_DEBUG
+		    y2debug ("block end");
+#endif
+		    top = blockstack_pop (p_parser->m_block_stack);
+		    is_include = false;
+		}
+
+		YBlockPtr b = top->theBlock;
+
+		SymbolTable *localTable = p_parser->scanner()->localTable();
+		extern SymbolTable *builtinTable;	// for predefined namespaces
+#if 0
+		y2debug ("table before (%s)", localTable->toString().c_str());
+#endif
+
+		if (top->self != 0)
+		{
+		    top->self->remove();			// remove c_self entry
+		}
+
+		if (top->includeDepth == 0)
+		{
+#if DO_DEBUG
+		    y2debug ("Detaching local table");
+#endif
+		    b->detachEnvironment (localTable);		// detach local table
+#if DO_DEBUG
+		    y2debug ("Detaching local table done");
+#endif
+		}
+		else
+		{
+		    top->includeDepth--;			// end of include block
+		    b->endInclude ();
+		}
+
+		if (b->isModule()
+		    || b->isFile())
+		{
+		    // end of topleve 'module' or 'file' block
+		    // check if any predefined namespace where activated in StaticDeclaration
+		    //   or auto-imported by the scanner
+		    // add import statements for such namespaces
+		    Y2Namespace *name_space;
+
+		    const std::list<std::pair<std::string, Y2Namespace *> > & active_predefined = static_declarations.active_predefined();
+		    std::list<std::pair<std::string, Y2Namespace *> >::const_iterator it;
+		    for (it = active_predefined.begin(); it != active_predefined.end(); it++)
+		    {
+			name_space = it->second;
+			if (name_space->table()->countUsage() > 0)
+			{
+#if DO_DEBUG
+			    y2debug ("active_predefined: import '%s', %d symbols needed", it->first.c_str(), name_space->table()->countUsage());
+#endif
+			    p_parser->m_current_block->pretachStatement (new YSImport (it->first, name_space));
+			}
+		    }
+		    const std::list<std::pair<std::string, Y2Namespace *> > & autoimport_predefined= p_parser->scanner()->autoimport_predefined();
+		    for (it = autoimport_predefined.begin(); it != autoimport_predefined.end(); it++)
+		    {
+			name_space = it->second;
+			if (name_space->table()->countUsage() > 0)
+			{
+#if DO_DEBUG
+			    y2debug ("autoimport_predefined: import '%s', %d symbols needed", it->first.c_str(), name_space->table()->countUsage());
+#endif
+			    p_parser->m_current_block->pretachStatement (new YSImport (it->first, name_space));
+			    
+			    // reset symbol entry category - BEWARE: this makes it non-reentrant
+                    	    TableEntry* tentry = builtinTable->find (it->first.c_str ());
+                    	    if (tentry && tentry->sentry ())
+                    	    {
+                        	tentry->sentry ()->setCategory (SymbolEntry::c_predefined);
+                    	    }
+			}
+		    }
+		}
+
+//		y2debug ("table after (%s)", localTable->toString().c_str());
+
+		if ($1.t == 0)			// error block
+		{
+		    $$.t = 0;
+		    break;
+		}
+
+		if ($1.c == 0)			// empty block
+		{
+		    if (is_include)
+		    {
+			yyLerror ("Bad (empty ?) include file", $1.l);
+			$$.t = 0;
+			break;
+		    }
+		    if (b->isModule())
+		    {
+			yyLerror ("Empty module", $1.l);
+			$$.t = 0;
+			break;
+		    }
+		    $$.c = 0;
+		}
+		else if (is_include)		// this was an include block
+		{
+		    $$.c = 0;			// pass it up as 'empty'
+		}
+		else
+		{
+		    b->finish ();
+		    $$.c = b;			// normal block
+		}
+
+		// See the comment about types at the "expression" rule.
+		$$.t = top->theBlock->type ();
+		$$.l = $1.l;
+
+		if (!is_include)
+		{
+		    delete top;
+		}
+	    }
+
+|	statements '}'
 	    {
 		// end of block
 		//
@@ -1236,7 +1443,7 @@ block_end:
 /* statements are always inside a block, so p_parser->m_block_stack is valid !  */
 
 statements:
-	statements statement
+	statements commented_statement
 	    {
 		if (($1.t == 0)
 		    || ($2.t == 0))
@@ -1325,13 +1532,32 @@ statements:
 		$$.t = typeofblock;
 		$$.l = $1.l;
 	    }
-| /* empty  */
+| /* empty */ 
 	    {
 		$$.t = Type::Unspec;	// default type is unknown
 		$$.c = 0;		// empty statement
 		$$.l = LINE_NOW;
 	    }
 ;
+
+commented_statement:
+  comment_before commented_statement
+      {
+        if ($2.c != NULL)
+          $2.c->setCommentBefore($1.v.sval);
+        $$ = $2;
+      }
+| commented_statement COMMENT_AFTER
+      {
+        if ($1.c != NULL)
+          $1.c->setCommentAfter($2.v.sval);
+        $$ = $1;
+      }
+| statement
+  {
+    $$ = $1;
+  }
+
 
 statement:
 	';'
@@ -1770,7 +1996,7 @@ statement:
 ;
 
 control_statement:
-	IF '(' expression ')' statement opt_else
+	IF '(' expression ')' commented_statement opt_else
 	    {
 		if (($3.t == 0)			// bad expression
 		    || ($5.t == 0)		// bad 'then' statement
@@ -1838,6 +2064,77 @@ control_statement:
 		    yywarning("Empty statement after 'if'", $1.l);
 		}
 	    }
+| IF '(' expression ')' COMMENT_AFTER commented_statement opt_else
+	    {
+		if (($3.t == 0)			// bad expression
+		    || ($6.t == 0)		// bad 'then' statement
+		    || ($7.t == 0))		// bad 'else' statement
+		{
+		    $$.t = 0;
+		    break;
+		}
+
+    if ($3.c != NULL)
+        $3.c->setCommentAfter($5.v.sval);
+
+		if (!$3.t->isBoolean())
+		{
+		    yyTypeMismatch ("'if' expression not boolean", Type::Boolean, $3.t, $3.l);
+		    $$.t = 0;
+		    break;
+		}
+
+		if (($6.c != 0)				// 'then' statement not empty
+		    && (($6.c->kind() == YCode::ysVariable)
+			|| ($6.c->kind() == YCode::ysFunction)))
+		{
+		    yyLerror ("Declaration must be inside block", $6.l);
+		    $$.t = 0;
+		    break;
+		}
+
+		if ($7.c == 0)			// no else
+		{
+		    $$.c = new YSIf ($3.c, $6.c, $7.c, $1.l);
+		    $$.t = $6.t;
+		}
+		else			// else branch given
+		{
+		    constTypePtr thentype = $6.t;
+		    constTypePtr elsetype = $7.t;
+		    
+		    //There used to be a Type::Unspec -> Type::Void conversion here. It was wrong.
+		    // See the comment about types at the "expression" rule.
+		    
+		    // if one of types is void (=nil), use the other one 
+		    if (thentype->isNil ())
+		    {
+			$$.t = elsetype;
+		    }
+		    else if (elsetype->isNil ())
+		    {
+			$$.t = thentype;
+		    }
+		    else $$.t = thentype->commontype (elsetype);
+
+		    if (false) ;					// FIXME
+		    else if (($7.c->kind() == YCode::ysVariable)
+			     || ($7.c->kind() == YCode::ysFunction))
+		    {
+			yyLerror ("Declaration must be inside block", $7.l);
+			$$.t = 0;
+		    }
+		    else
+		    {
+			$$.c = new YSIf ($3.c, $6.c, $7.c, $1.l);
+		    }
+		}
+
+		if ($6.c == 0)
+		{
+		    yywarning("Empty statement after 'if'", $1.l);
+		}
+	    }
 |	WHILE '(' expression ')'
 	    {
 		if ($3.t == 0)
@@ -1858,7 +2155,7 @@ control_statement:
 		    $$ = $3;
 		}
 	    }
-	statement
+	commented_statement
 	    {
 		p_parser->m_loop_count--;
 		if (($5.t == 0)
@@ -2059,7 +2356,7 @@ control_statement:
 ;
 
 opt_else:
-	ELSE statement
+	ELSE commented_statement
 	    {
 		$$ = $2;
 	    }
@@ -2069,6 +2366,7 @@ opt_else:
 		$$.t = Type::Unspec;
 	    }
 ;
+
 
 /* -------------------------------------------------------------- */
 /* types  */
@@ -2950,6 +3248,26 @@ assignment:
 		$$.l = $1.l;
 	    }
 ;
+
+comment_before:
+  COMMENT_BEFORE comment_before
+  {
+    $$ = $2;
+    unsigned len1 = strlen($1.v.sval);
+    char * res = new char[len1+strlen($2.v.sval)+2];
+    strcpy(res,$1.v.sval);
+    //join with endline
+    res[len1] = '\n';
+    res[len1+1] = 0;
+    strcat(res,$2.v.sval);
+    delete[] $1.v.sval;
+    delete[] $2.v.sval;
+    $$.v.sval = res;
+  }
+| COMMENT_BEFORE
+  {
+    $$ = $1;
+  }
 
 /* ----------------------------------------------------------*/
 

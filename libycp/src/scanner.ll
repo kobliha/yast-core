@@ -75,6 +75,8 @@ static tokenValue token_value;
 
 #define RESULT(type,token) setScannedToken(token_value, type); scanner_token = yytext; return token
 
+static int comment_before = 0;
+
 %}
 
 %option noyywrap
@@ -99,13 +101,93 @@ SYMBOL ([[:alpha:]_][[:alnum:]_]+|[[:alpha:]][[:alnum:]_]*)
  /* ----------------------------------- */
 
 
-^[\t ]*#.*$			{ /* Ignore Unix style Comments */ }
-\/\*				{ BEGIN (comment); }
-<comment>\n			{ INC_LINE; }
-<comment>\*\/			{ BEGIN (INITIAL); }
-<comment>.			{ /* skip  */ }
+^[\t ]*#.*$			{ 
+  char * val = strdup(strchr(yytext, '#')+1);
+  val[strlen(val)] = 0; /*remove endline */
+  token_value.sval = val;
+  RESULT(Type::Unspec, COMMENT_BEFORE);
+}
 
-\/\/.*$				{ /* Ignore C++ style comments */ }
+\/\*[\t ]*EOF[\t ]*\*\/ { 
+  /* ignore stupid EOF on end of file */ 
+  debug_scanner("comment EOF");
+}
+
+^[\t ]*\/\*				{ 
+  debug_scanner("comment start");
+	if (m_scandataBuffer == 0)
+	    m_scandataBuffer = extend_scanbuffer (1);
+	if (m_scandataBuffer == 0)
+	    return SCANNER_ERROR;
+
+	m_scandataBufferPtr = m_scandataBuffer;
+
+  comment_before = 1;
+  BEGIN (comment);
+}
+
+\/\*				{ 
+  debug_scanner("comment start");
+	if (m_scandataBuffer == 0)
+	    m_scandataBuffer = extend_scanbuffer (1);
+	if (m_scandataBuffer == 0)
+	    return SCANNER_ERROR;
+
+	m_scandataBufferPtr = m_scandataBuffer;
+
+  comment_before = 0;
+  BEGIN (comment);
+}
+<comment>\*\/			{ 
+  debug_scanner("comment end");
+	BEGIN (INITIAL);
+	*m_scandataBufferPtr = '\0';
+	token_value.sval = Scanner::doStrdup (m_scandataBuffer);
+	RESULT (Type::Unspec, comment_before ? COMMENT_BEFORE : COMMENT_AFTER);
+}
+
+<comment>[*\n]	{
+  debug_scanner("comment special '%s'",yytext);
+	int offset = m_scandataBufferPtr - m_scandataBuffer;
+	if (offset >= m_scandataBufferSize)
+	{
+	  if (extend_scanbuffer (1) == 0)
+		  return SCANNER_ERROR;
+	  m_scandataBufferPtr = m_scandataBuffer + offset;
+	}
+	*m_scandataBufferPtr++ = yytext[0];
+  if (yytext[0] == '\n')
+  	INC_LINE;
+}
+
+<comment>[^*\n]+			{
+  debug_scanner("comment content '%s'",yytext);
+  char *yptr = yytext;
+  int needed = yyleng;
+  int used = m_scandataBufferPtr - m_scandataBuffer;
+
+  if (used + needed >= m_scandataBufferSize)
+  {
+    if (extend_scanbuffer (needed) == 0)
+      return SCANNER_ERROR;
+    m_scandataBufferPtr = m_scandataBuffer + used;  // might be realloced
+  }
+  strcpy (m_scandataBufferPtr, yptr);
+  m_scandataBufferPtr += needed;
+}
+
+^[\t ]*\/\/.*$				{ /* comment on empty line so before one*/
+    char * val = strdup(strstr(yytext, "//")+2); /*+2 to remove '//' */
+    val[strlen(val)] = 0; /*remove endline */
+    token_value.sval = val;
+    RESULT(Type::Unspec, COMMENT_BEFORE);
+}
+\/\/.*$				{ /* commant after some statements */
+    char * val = strdup(strstr(yytext, "//")+2); /*+2 to remove '//' */
+    val[strlen(val)] = 0; /*remove endline */
+    token_value.sval = val;
+    RESULT(Type::Unspec, COMMENT_AFTER);
+}
 \n				{ /* Ignore newlines  */
 				  INC_LINE;
 				}

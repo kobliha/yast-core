@@ -155,14 +155,12 @@ Parser::setScanner (Scanner *s)
 YCodePtr
 Parser::parse (SymbolTable *gTable, SymbolTable *lTable)
 {
-#if 0
     extern int yydebug;
 
     yydebug = (getenv ("YCP_YYDEBUG") == 0) ? 0 : 1;
 
     if (yydebug)
 	y2debug ("Running with full debug");
-#endif
 
     if (m_scanner == 0)
     {
