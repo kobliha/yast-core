@@ -151,6 +151,8 @@ YEVariable::toXml( std::ostream & str, int /*indent*/ ) const
     commentToXml(str);
     str << m_entry->toString (false /*definition*/);
     str << "\" category=\"" << m_entry->catString();
+    str << "\" type=\"" << m_entry->type()->toXmlString();
+
     return str << "\"/>";
 }
 
