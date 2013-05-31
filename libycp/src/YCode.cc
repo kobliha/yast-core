@@ -247,15 +247,29 @@ YCode::type () const
 void
 YCode::setCommentBefore (const char* comment)
 {
-  comment_before = comment;
-  y2debug("set comment before for code %s", toString().c_str());
+  if (strlen(comment) > 0 )
+  {
+    if (comment_before && strlen(comment_before) > 0) // there is already something
+    {
+      char * newstr = new char[strlen(comment_before) + strlen(comment) + 1];
+      strcpy(newstr, comment);
+      strcat(newstr, comment_before);
+      delete[] comment_before;
+      delete[] comment;
+      comment_before = newstr;
+    }
+    else
+      comment_before = comment;
+  }
+  y2debug("set comment '%s' before for code %s", comment, toString().c_str());
 }
 
 void
 YCode::setCommentAfter (const char* comment)
 {
-  comment_after = comment;
-  y2debug("set comment after for code %s", toString().c_str());
+  if (strlen(comment) > 0 )
+    comment_after = comment;
+  y2debug("set comment '%s' after for code %s", comment, toString().c_str());
 }
 
 // ------------------------------------------------------------------

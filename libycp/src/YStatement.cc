@@ -536,7 +536,7 @@ std::ostream &
 YSFunction::toXml( std::ostream & str, int indent ) const
 {
     str << "<fun_def name=\"" << m_entry->name() << "\"";
-    commentToXml(str);
+    function()->commentToXml(str);
     str << ">\n";
 
     function()->toXml( str, indent+2 );
