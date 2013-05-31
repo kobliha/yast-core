@@ -649,8 +649,11 @@ YSAssign::toStream (std::ostream & str) const
 std::ostream &
 YSAssign::toXml( std::ostream & str, int /*indent*/ ) const
 {
-    str << "<assign name=\"" << m_entry->toString (false /*definition*/) << "\"";
+    str << "<assign name=\"" << m_entry->name() << "\"";
     commentToXml(str);
+    string ns = m_entry->nameSpace()->name();
+    if (!ns.empty())
+      str << " ns=\"" << ns << "\"";
     str << ">";
     m_code->toXml( str, 0 );
     return str << "</assign>";
