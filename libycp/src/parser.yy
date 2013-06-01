@@ -2698,8 +2698,9 @@ function_start:
 */
 
 opt_global_identifier:
-	opt_global opt_define type identifier
+	opt_global opt_define type identifier comment_before
 	    {
+        remaining_comment = $5.v.sval;
 		$$.t = $3.t;
 		$$.l = $4.l;
 
