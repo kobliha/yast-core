@@ -3381,8 +3381,10 @@ map_elements:
 		$$.l = $2.l;
     last_map_value_code = $4.c;
 	    }
-|	map_elements ','  opt_comment_after
+|	map_elements ','  opt_comment_after comment_before
     {
+      last_map_value_code->setCommentAfter($3.v.sval);
+      last_map_value_code->setCommentAfter($4.v.sval);
       $$ = $1;
     }
 |	map_elements ','  opt_comment_after comment_before expression ':' expression
