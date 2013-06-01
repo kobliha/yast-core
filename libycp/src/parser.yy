@@ -2259,14 +2259,11 @@ control_statement:
 ;
 
 opt_else:
-	ELSE commented_statement
+  ELSE opt_comment_after comment_before commented_statement
 	    {
-		$$ = $2;
-	    }
-| ELSE COMMENT_AFTER commented_statement
-	    {
-    $$.c->setCommentBefore($2.v.sval);
-		$$ = $3;
+        $4.c->setCommentBefore($3.v.sval);
+        $4.c->setCommentBefore($2.v.sval);
+    		$$ = $4;
 	    }
 |	/* empty */
 	    {
@@ -3354,57 +3351,59 @@ map:
 
 // $$.t == MapTypePtr()
 map_elements:
-	expression ':' expression
+	comment_before expression ':' expression
 	    {
-		if (($1.t == 0)
-		    || ($3.t == 0))
+		if (($2.t == 0)
+		    || ($4.t == 0))
 		{
 		    $$.t = 0;
 		    break;
 		}
-		if (!($1.t->isInteger()
-		    || $1.t->isString()
-		    || $1.t->isSymbol()))
+		if (!($2.t->isInteger()
+		    || $2.t->isString()
+		    || $2.t->isSymbol()))
 		{
-		    yyLerror ("Bad type for key", $1.l);
+		    yyLerror ("Bad type for key", $2.l);
 		    $$.t = 0;
 		    break;
 		}
-		$$.c = new YEMap ($1.c, $3.c);
-		$$.t = MapTypePtr (new MapType ($1.t, $3.t));
-		$$.l = $1.l;
-    last_map_value_code = $3.c;
+    $2.c->setCommentBefore($1.v.sval);
+		$$.c = new YEMap ($2.c, $4.c);
+		$$.t = MapTypePtr (new MapType ($2.t, $4.t));
+		$$.l = $2.l;
+    last_map_value_code = $4.c;
 	    }
 |	map_elements ','  opt_comment_after
     {
       $$ = $1;
     }
-|	map_elements ','  opt_comment_after expression ':' expression
+|	map_elements ','  opt_comment_after comment_before expression ':' expression
 	    {
 		if (($1.t == 0)
-		    || ($4.t == 0)
-		    || ($6.t == 0))
+		    || ($5.t == 0)
+		    || ($7.t == 0))
 		{
 		    $$.t = 0;
 		    break;
 		}
-		if (!($4.t->isInteger()
-		    || $4.t->isString()
-		    || $4.t->isSymbol()))
+		if (!($5.t->isInteger()
+		    || $5.t->isString()
+		    || $5.t->isSymbol()))
 		{
 		    //yyCerror($3.c, $3.t, $3.l);
-		    yyLerror ("Bad type for key", $4.l);
+		    yyLerror ("Bad type for key", $5.l);
 		    $$.t = 0;
 		    break;
 		}
 
     last_map_value_code->setCommentAfter($3.v.sval);
+    $5.c->setCommentBefore($4.v.sval);
 		constMapTypePtr mt = $1.t;
-		constTypePtr keytype = mt->keytype()->commontype ($4.t);
-		constTypePtr valuetype = mt->valuetype()->commontype ($6.t);
+		constTypePtr keytype = mt->keytype()->commontype ($5.t);
+		constTypePtr valuetype = mt->valuetype()->commontype ($7.t);
 		$$.t = MapTypePtr (new MapType (keytype, valuetype));
 
-		((YEMapPtr)$1.c)->attach ($4.c, $6.c);
+		((YEMapPtr)$1.c)->attach ($5.c, $7.c);
 		$$.c = $1.c;
 		$$.l = $1.l;
 	    }
