@@ -2435,19 +2435,21 @@ definition:
 		y2debug ("Func (%s) done", $$.c->toString().c_str());
 #endif
 	    }
-|	opt_global_identifier '=' expression ';'		/* variable definition */
+|	opt_global_identifier '=' comment_before expression ';'		/* variable definition */
 	    {
 		if (($1.t == 0)
-		    || ($3.t == 0))
+		    || ($4.t == 0))
 		{
 #if DO_DEBUG
-		    y2debug ("Bad identifier (%p) or expression (%p)", (const void *)$1.t, (const void *)$3.t);
+		    y2debug ("Bad identifier (%p) or expression (%p)", (const void *)$1.t, (const void *)$4.t);
 #endif
 		    $$.t = 0;
 		    break;
 		}
 
-		check_void_assign (&($1), &($3));
+    $4.c->setCommentBefore($3.v.sval);
+
+		check_void_assign (&($1), &($4));
 
 		TableEntry *tentry = $1.v.tval;
 
@@ -2461,33 +2463,33 @@ definition:
 		}
 		else
 		{
-		    int match = $3.t->match ($1.t);
+		    int match = $4.t->match ($1.t);
 #if DO_DEBUG
-		    y2debug ("Assign '%s' = '%s' -> %d", $1.t->toString().c_str(), $3.t->toString().c_str(), match);
+		    y2debug ("Assign '%s' = '%s' -> %d", $1.t->toString().c_str(), $4.t->toString().c_str(), match);
 #endif
 		    if (match < 0)				// no match
 		    {
 			if ($1.t->isBlock()			// lhs is block
-			    && $3.c->isBlock())			// rhs is also block
+			    && $4.c->isBlock())			// rhs is also block
 			{
-			    TypePtr bt = BlockTypePtr (new BlockType ($3.t));		// don't evaluate block
-			    $3.c = new YEReturn ($3.c);
+			    TypePtr bt = BlockTypePtr (new BlockType ($4.t));		// don't evaluate block
+			    $4.c = new YEReturn ($4.c);
 
 			    match = bt->match ($1.t);
 			    if (match == 0)
 			    {
-				$3.t = bt;
+				$4.t = bt;
 			    }
 			    else if (match > 0)
 			    {
-				$3.c = new YEPropagate ($3.c, $3.t, $1.t);
-				$3.t = bt;
+				$4.c = new YEPropagate ($4.c, $4.t, $1.t);
+				$4.t = bt;
 			    }
 			    
 			}
 		        if (match < 0)
 			{
-			    yyTypeMismatch ("type mismatch in variable definition", $1.t, $3.t, $1.l);
+			    yyTypeMismatch ("type mismatch in variable definition", $1.t, $4.t, $1.l);
 			    $$.t = 0;
 			    break;
 //			    tentry->remove();
@@ -2495,8 +2497,8 @@ definition:
 		    }
 		    else if (match > 0)		// propagated match
 		    {
-			YaST::ee.setLinenumber($3.l);
-			$3.c = new YEPropagate ($3.c, $3.t, $1.t);
+			YaST::ee.setLinenumber($4.l);
+			$4.c = new YEPropagate ($4.c, $4.t, $1.t);
 			match = 0;
 		    }
 		    
@@ -2504,8 +2506,8 @@ definition:
 
 		    if (match == 0)		// type match ok
 		    {
-			$$.c = new YSVariable (tentry->sentry(), $3.c, $1.l);
-			sentry->setCode($3.c);
+			$$.c = new YSVariable (tentry->sentry(), $4.c, $1.l);
+			sentry->setCode($4.c);
 		    }
 		    if (sentry->category() == SymbolEntry::c_unspec)
 		    {
@@ -2953,10 +2955,10 @@ formal_param:
 /* Assignment */
 
 assignment:
-	identifier comment_before '=' expression
+	identifier comment_before '=' comment_before expression
 	    {
 		if (($1.t == 0)		// bad identifier
-		    || ($4.t == 0))	// bad expression
+		    || ($5.t == 0))	// bad expression
 		{
 		    $$.t = 0;
 		    break;
@@ -2976,16 +2978,16 @@ assignment:
 		    break;
 		}
 
-		check_void_assign (&($1), &($4));
+		check_void_assign (&($1), &($5));
 
-		int match = $4.t->match ($1.t);
+		int match = $5.t->match ($1.t);
 
 		if (match < 0)
 		{
 		    if ($1.t->isBlock()			// lhs is block
-			&& $4.c->isBlock())			// rhs is also block
+			&& $5.c->isBlock())			// rhs is also block
 		    {
-			TypePtr bt = BlockTypePtr (new BlockType ($4.t));		// don't evaluate block
+			TypePtr bt = BlockTypePtr (new BlockType ($5.t));		// don't evaluate block
 
 			match = bt->match ($1.t);
 			if (match == 0)
@@ -2994,14 +2996,14 @@ assignment:
 			}
 			else if (match > 0)
 			{
-			    $4.c = new YEPropagate ($4.c, $4.t, $1.t);
-			    $4.t = bt;
+			    $5.c = new YEPropagate ($5.c, $5.t, $1.t);
+			    $5.t = bt;
 			}
-			$4.c = new YEReturn ($4.c);
+			$5.c = new YEReturn ($5.c);
 		    }
 		    if (match < 0)
 		    {
-			yyTypeMismatch ("type mismatch in assignment", $1.t, $4.t, $1.l);
+			yyTypeMismatch ("type mismatch in assignment", $1.t, $5.t, $1.l);
 			$$.t = 0;
 			break;
 //			tentry->remove();
@@ -3019,12 +3021,13 @@ assignment:
 
 		if (match > 0)
 		{
-		    YaST::ee.setLinenumber($4.l);
-		    $4.c = new YEPropagate ($4.c, $4.t, $1.t);
+		    YaST::ee.setLinenumber($5.l);
+		    $5.c = new YEPropagate ($5.c, $5.t, $1.t);
 		}
 
-		$$.c = new YSAssign ($1.v.tval->sentry(), $4.c, $1.l);
+		$$.c = new YSAssign ($1.v.tval->sentry(), $5.c, $1.l);
 		$$.t = Type::Unspec;
+    $$.c->setCommentBefore($4.v.sval);
     $$.c->setCommentBefore($2.v.sval);
 		$$.l = $1.l;
 	    }
@@ -3279,7 +3282,7 @@ list:
 ;
 
 list_elements:
-	comment_before expression
+	comment_before expression comment_before
 	    {
 		if ($2.t == 0)
 		{
@@ -3287,11 +3290,12 @@ list_elements:
 		    break;
 		}
     $2.c->setCommentBefore($1.v.sval);
+    remaining_comment = $3.v.sval; //TODO use different static variable, probably stack
 		$$.c = new YEList ($2.c);
 		$$.t = $2.t;
 		$$.l = $2.l;
 	    }
-|	list_elements ',' comment_before expression
+|	list_elements ',' comment_before expression comment_before
 	    {
 		if (($1.t == 0)
 		    || ($4.t == 0))
@@ -3302,6 +3306,7 @@ list_elements:
 
 		$$.t = $1.t->commontype ($4.t);
     $4.c->setCommentBefore($3.v.sval);
+    remaining_comment = $5.v.sval;
 		((YEListPtr)$1.c)->attach ($4.c);
 		$$.c = $1.c;
 		$$.l = $1.l;
@@ -3849,7 +3854,7 @@ parameters:
 		$$.c = $0.c;
 		$$.t = Type::Unspec;
 	    }
-|	parameters ',' comment_before expression
+|	parameters ',' comment_before expression comment_before
 	    {
 		if (($1.t == 0)
 		    || ($4.t == 0))
@@ -3884,6 +3889,7 @@ parameters:
 		}
 
     $4.c->setCommentBefore($3.v.sval);
+    $4.c->setCommentAfter($5.v.sval);
 		$$.c = $1.c;
 		$$.t = Type::Unspec;
 	    }
