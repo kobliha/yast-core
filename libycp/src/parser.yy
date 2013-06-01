@@ -408,11 +408,11 @@ expression:
 ;
 
 bracket_expression:
-	compact_expression '[' list_elements CLOSEBRACKET expression
+	compact_expression '[' list_elements CLOSEBRACKET comment_before expression
 	    {
 		if (($1.t == 0)			// any errors yet ?
 		    || ($3.t == 0)
-		    || ($5.t == 0))
+		    || ($6.t == 0))
 		{
 		    $$.t = 0;			// Y: break out
 		    break;
@@ -514,34 +514,35 @@ bracket_expression:
 		}					// type determination done
 
 #if DO_DEBUG
-		    y2debug ("default type '%s', determined type '%s'", $5.t->toString().c_str(), $$.t->toString().c_str());
+		    y2debug ("default type '%s', determined type '%s'", $6.t->toString().c_str(), $$.t->toString().c_str());
 #endif
-		// default ($5) must match for non-nil
-		if (! $5.t->isVoid ()				// default is not 'nil'
-		    && $5.t->match ($$.t) == -1)		// and it doesn't match the determined type
+		// default ($6) must match for non-nil
+		if (! $6.t->isVoid ()				// default is not 'nil'
+		    && $6.t->match ($$.t) == -1)		// and it doesn't match the determined type
 		{
 		    yyTypeMismatch ((string ("Bracket default to '")
 				     + $1.c->toString()
-				     + string ("' has wrong type")).c_str(), $$.t, $5.t, $1.l);		// -> then we have a type error
+				     + string ("' has wrong type")).c_str(), $$.t, $6.t, $1.l);		// -> then we have a type error
 		    $$.t = 0;
 		}
 		else
 		{
-		    check_void_assign (0, &($5));
-		    $$.c = new YEBracket ($1.c, $3.c, $5.c, $$.t);
+		    check_void_assign (0, &($6));
+		    $$.c = new YEBracket ($1.c, $3.c, $6.c, $$.t);
 		    $$.l = $1.l;
-		    if (! $5.t->isVoid ()			// default is not 'nil'
+		    if (! $6.t->isVoid ()			// default is not 'nil'
 			&& $$.t->isAny ()			// and the map/list is unspecified
-			&& !$5.t->isAny())			// don't cast any -> any
+			&& !$6.t->isAny())			// don't cast any -> any
 		    {
 			// for non-nil default and cur == Any use the type of the default,
 			// but with runtime type checking
-			$$.c = new YEPropagate ($$.c, Type::Any, $5.t);
+			$$.c = new YEPropagate ($$.c, Type::Any, $6.t);
 		    }
-		    $$.t = $$.t->detailedtype ($5.t);
+		    $$.t = $$.t->detailedtype ($6.t);
 #if DO_DEBUG
 		    y2debug ("detailed type '%s'", $$.t->toString().c_str());
 #endif
+        $6.c->setCommentBefore($5.v.sval);
 		}
 	    }
 ;
@@ -2952,10 +2953,10 @@ formal_param:
 /* Assignment */
 
 assignment:
-	identifier '=' expression
+	identifier comment_before '=' expression
 	    {
 		if (($1.t == 0)		// bad identifier
-		    || ($3.t == 0))	// bad expression
+		    || ($4.t == 0))	// bad expression
 		{
 		    $$.t = 0;
 		    break;
@@ -2975,16 +2976,16 @@ assignment:
 		    break;
 		}
 
-		check_void_assign (&($1), &($3));
+		check_void_assign (&($1), &($4));
 
-		int match = $3.t->match ($1.t);
+		int match = $4.t->match ($1.t);
 
 		if (match < 0)
 		{
 		    if ($1.t->isBlock()			// lhs is block
-			&& $3.c->isBlock())			// rhs is also block
+			&& $4.c->isBlock())			// rhs is also block
 		    {
-			TypePtr bt = BlockTypePtr (new BlockType ($3.t));		// don't evaluate block
+			TypePtr bt = BlockTypePtr (new BlockType ($4.t));		// don't evaluate block
 
 			match = bt->match ($1.t);
 			if (match == 0)
@@ -2993,14 +2994,14 @@ assignment:
 			}
 			else if (match > 0)
 			{
-			    $3.c = new YEPropagate ($3.c, $3.t, $1.t);
-			    $3.t = bt;
+			    $4.c = new YEPropagate ($4.c, $4.t, $1.t);
+			    $4.t = bt;
 			}
-			$3.c = new YEReturn ($3.c);
+			$4.c = new YEReturn ($4.c);
 		    }
 		    if (match < 0)
 		    {
-			yyTypeMismatch ("type mismatch in assignment", $1.t, $3.t, $1.l);
+			yyTypeMismatch ("type mismatch in assignment", $1.t, $4.t, $1.l);
 			$$.t = 0;
 			break;
 //			tentry->remove();
@@ -3018,12 +3019,13 @@ assignment:
 
 		if (match > 0)
 		{
-		    YaST::ee.setLinenumber($3.l);
-		    $3.c = new YEPropagate ($3.c, $3.t, $1.t);
+		    YaST::ee.setLinenumber($4.l);
+		    $4.c = new YEPropagate ($4.c, $4.t, $1.t);
 		}
 
-		$$.c = new YSAssign ($1.v.tval->sentry(), $3.c, $1.l);
+		$$.c = new YSAssign ($1.v.tval->sentry(), $4.c, $1.l);
 		$$.t = Type::Unspec;
+    $$.c->setCommentBefore($2.v.sval);
 		$$.l = $1.l;
 	    }
 |	identifier '[' list_elements ']' '=' expression
