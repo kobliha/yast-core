@@ -276,7 +276,7 @@ static int do_while_count = 0;
 %}
 
  /* expect one shift-reduce conflict (a dangling else) */
-%expect 9
+%expect 11
 %pure_parser
 %debug
 %verbose
@@ -752,10 +752,11 @@ compact_expression:
 	    {
 		$$ = $1;
 	    }
-|	'(' comment_before expression ')'
+|	'(' opt_comment_after comment_before expression ')'
 	    {
-          $3.c->setCommentBefore($2.v.sval);
-		$$ = $3;
+          $4.c->setCommentBefore($3.v.sval);
+          $4.c->setCommentBefore($2.v.sval);
+		$$ = $4;
 	    }
 |	QUOTED_EXPRESSION expression ')'
 	    {
@@ -3683,12 +3684,12 @@ parameters:
 		$$.t = $1.t;
 		$$.l = $1.l;
 	    }
-|	comment_before expression
+|	opt_comment_after comment_before expression
 	    {
 #if DO_DEBUG
 		y2debug ("parameters: expression");
 #endif
-		if ($2.t == 0)			// parameter 'expression' is bad
+		if ($3.t == 0)			// parameter 'expression' is bad
 		{
 #if DO_DEBUG
 		    y2debug ("parameter 'expression' is bad");
@@ -3702,7 +3703,7 @@ parameters:
 		{
 		    // attach parameter ($1) to function ($0), checking types
 
-		    constTypePtr t = attach_parameter (p_parser, $0.c, &($2));
+		    constTypePtr t = attach_parameter (p_parser, $0.c, &($3));
 
 		    if (t != 0)
 		    {
@@ -3714,9 +3715,10 @@ parameters:
 		    }
 		}
 
-    $2.c->setCommentBefore($1.v.sval);
-		$$.c = $2.c;		// default return value
-		$$.t = $2.t;
+    $3.c->setCommentBefore($2.v.sval);
+    $3.c->setCommentBefore($1.v.sval);
+		$$.c = $3.c;		// default return value
+		$$.t = $3.t;
 	    }
 |	parameters ',' type identifier
 	    {
