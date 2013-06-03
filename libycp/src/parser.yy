@@ -1068,17 +1068,17 @@ infix_expression:
 ;
 
 block:
-	'{' comment_before
+	'{' opt_comment_after comment_before
 	    {
           if (remaining_comment == NULL || strlen(remaining_comment) == 0)
-            remaining_comment = $2.v.sval;
+            remaining_comment = $3.v.sval;
           else
           {
             unsigned remaining_size = strlen(remaining_comment);
-            char *t = new char[remaining_size+strlen($2.v.sval)+1];
+            char *t = new char[remaining_size+strlen($3.v.sval)+1];
             strcpy(t,remaining_comment);
-            strcat(t,$2.v.sval);
-            delete[] $2.v.sval;
+            strcat(t,$3.v.sval);
+            delete[] $3.v.sval;
             delete[] remaining_comment;
             remaining_comment = t;
           }
@@ -1118,50 +1118,8 @@ block:
 	    }
 	block_end
 	    {
-		$$ = $4;
-#if DO_DEBUG
-		y2debug ("block: (%s:%s)", $$.c ? $$.c->toString().c_str() : "<nil>", $$.t ? $$.t->toString().c_str() : "<ERR>");
-#endif
-	    }
-|	'{' COMMENT_AFTER
-	    {
-		if (declared_return_type == 0)
-		{
-		    // this is error, propagate
-		    $$.t = 0;
-		    break;
-		}
-		
-		constTypePtr b_t = declared_return_type;
-		
-		if ( ! declared_return_type->isUnspec ())
-		{
-		    declared_return_type = Type::Unspec;
-		}
-		else if (p_parser->m_block_stack != NULL)
-		{
-		    b_t = p_parser->m_block_stack->theBlock->type ();
-		}
-
-		start_block (p_parser, b_t);
-
-		// verify, if we are in switch. if yes, say we are
-		// the block of the switch
-		
-		if (in_switch) {
-#if DO_DEBUG
-		    y2debug ("Setting block for switch");
-#endif
-		    p_parser->m_switch_stack->statement->
-			setBlock (p_parser->m_block_stack->theBlock);
-		    in_switch = false;
-		}
-		
-	    }
-	block_end
-	    {
-    $4.c->setCommentBefore($2.v.sval);
-		$$ = $4;
+    $5.c->setCommentBefore($2.v.sval);
+		$$ = $5;
 #if DO_DEBUG
 		y2debug ("block: (%s:%s)", $$.c ? $$.c->toString().c_str() : "<nil>", $$.t ? $$.t->toString().c_str() : "<ERR>");
 #endif
