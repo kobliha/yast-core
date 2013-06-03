@@ -276,7 +276,7 @@ static int do_while_count = 0;
 %}
 
  /* expect one shift-reduce conflict (a dangling else) */
-%expect 7
+%expect 9
 %pure_parser
 %debug
 %verbose
@@ -752,9 +752,10 @@ compact_expression:
 	    {
 		$$ = $1;
 	    }
-|	'(' expression ')'
+|	'(' comment_before expression ')'
 	    {
-		$$ = $2;
+          $3.c->setCommentBefore($2.v.sval);
+		$$ = $3;
 	    }
 |	QUOTED_EXPRESSION expression ')'
 	    {
@@ -1899,41 +1900,41 @@ statement:
 ;
 
 control_statement:
-	IF '(' expression ')' comment_before commented_statement opt_else
+	IF '(' comment_before expression ')' opt_comment_after comment_before commented_statement opt_else
 	    {
-		if (($3.t == 0)			// bad expression
-		    || ($6.t == 0)		// bad 'then' statement
-		    || ($7.t == 0))		// bad 'else' statement
+		if (($4.t == 0)			// bad expression
+		    || ($8.t == 0)		// bad 'then' statement
+		    || ($9.t == 0))		// bad 'else' statement
 		{
 		    $$.t = 0;
 		    break;
 		}
 
-		if (!$3.t->isBoolean())
+		if (!$4.t->isBoolean())
 		{
-		    yyTypeMismatch ("'if' expression not boolean", Type::Boolean, $3.t, $3.l);
+		    yyTypeMismatch ("'if' expression not boolean", Type::Boolean, $4.t, $4.l);
 		    $$.t = 0;
 		    break;
 		}
 
-		if (($6.c != 0)				// 'then' statement not empty
-		    && (($6.c->kind() == YCode::ysVariable)
-			|| ($6.c->kind() == YCode::ysFunction)))
+		if (($8.c != 0)				// 'then' statement not empty
+		    && (($8.c->kind() == YCode::ysVariable)
+			|| ($8.c->kind() == YCode::ysFunction)))
 		{
-		    yyLerror ("Declaration must be inside block", $6.l);
+		    yyLerror ("Declaration must be inside block", $8.l);
 		    $$.t = 0;
 		    break;
 		}
 
-		if ($7.c == 0)			// no else
+		if ($9.c == 0)			// no else
 		{
-		    $$.c = new YSIf ($3.c, $6.c, $7.c, $1.l);
-		    $$.t = $6.t;
+		    $$.c = new YSIf ($4.c, $8.c, $9.c, $1.l);
+		    $$.t = $8.t;
 		}
 		else			// else branch given
 		{
-		    constTypePtr thentype = $6.t;
-		    constTypePtr elsetype = $7.t;
+		    constTypePtr thentype = $8.t;
+		    constTypePtr elsetype = $9.t;
 		    
 		    //There used to be a Type::Unspec -> Type::Void conversion here. It was wrong.
 		    // See the comment about types at the "expression" rule.
@@ -1950,96 +1951,27 @@ control_statement:
 		    else $$.t = thentype->commontype (elsetype);
 
 		    if (false) ;					// FIXME
-		    else if (($7.c->kind() == YCode::ysVariable)
-			     || ($7.c->kind() == YCode::ysFunction))
+		    else if (($9.c->kind() == YCode::ysVariable)
+			     || ($9.c->kind() == YCode::ysFunction))
 		    {
-			yyLerror ("Declaration must be inside block", $7.l);
+			yyLerror ("Declaration must be inside block", $9.l);
 			$$.t = 0;
 		    }
 		    else
 		    {
-			$$.c = new YSIf ($3.c, $6.c, $7.c, $1.l);
+			$$.c = new YSIf ($4.c, $8.c, $9.c, $1.l);
 		    }
 		}
 
-		if ($6.c == 0)
+		if ($8.c == 0)
 		{
 		    yywarning("Empty statement after 'if'", $1.l);
 		}
-    $6.c->setCommentBefore($5.v.sval);
+    $8.c->setCommentBefore($7.v.sval);
+    $4.c->setCommentAfter($6.v.sval);
+    $4.c->setCommentBefore($3.v.sval);
 	    }
-| IF '(' expression ')' COMMENT_AFTER commented_statement opt_else
-	    {
-		if (($3.t == 0)			// bad expression
-		    || ($6.t == 0)		// bad 'then' statement
-		    || ($7.t == 0))		// bad 'else' statement
-		{
-		    $$.t = 0;
-		    break;
-		}
-
-    if ($3.c != NULL)
-        $3.c->setCommentAfter($5.v.sval);
-
-		if (!$3.t->isBoolean())
-		{
-		    yyTypeMismatch ("'if' expression not boolean", Type::Boolean, $3.t, $3.l);
-		    $$.t = 0;
-		    break;
-		}
-
-		if (($6.c != 0)				// 'then' statement not empty
-		    && (($6.c->kind() == YCode::ysVariable)
-			|| ($6.c->kind() == YCode::ysFunction)))
-		{
-		    yyLerror ("Declaration must be inside block", $6.l);
-		    $$.t = 0;
-		    break;
-		}
-
-		if ($7.c == 0)			// no else
-		{
-		    $$.c = new YSIf ($3.c, $6.c, $7.c, $1.l);
-		    $$.t = $6.t;
-		}
-		else			// else branch given
-		{
-		    constTypePtr thentype = $6.t;
-		    constTypePtr elsetype = $7.t;
-		    
-		    //There used to be a Type::Unspec -> Type::Void conversion here. It was wrong.
-		    // See the comment about types at the "expression" rule.
-		    
-		    // if one of types is void (=nil), use the other one 
-		    if (thentype->isNil ())
-		    {
-			$$.t = elsetype;
-		    }
-		    else if (elsetype->isNil ())
-		    {
-			$$.t = thentype;
-		    }
-		    else $$.t = thentype->commontype (elsetype);
-
-		    if (false) ;					// FIXME
-		    else if (($7.c->kind() == YCode::ysVariable)
-			     || ($7.c->kind() == YCode::ysFunction))
-		    {
-			yyLerror ("Declaration must be inside block", $7.l);
-			$$.t = 0;
-		    }
-		    else
-		    {
-			$$.c = new YSIf ($3.c, $6.c, $7.c, $1.l);
-		    }
-		}
-
-		if ($6.c == 0)
-		{
-		    yywarning("Empty statement after 'if'", $1.l);
-		}
-	    }
-|	WHILE '(' expression ')'
+|	WHILE '(' expression ')' opt_comment_after
 	    {
 		if ($3.t == 0)
 		{
@@ -2058,33 +1990,34 @@ control_statement:
 		{
 		    $$ = $3;
 		}
+    $3.c->setCommentAfter($5.v.sval);
 	    }
 	commented_statement
 	    {
 		p_parser->m_loop_count--;
-		if (($5.t == 0)
-		    || ($6.t == 0))
+		if (($6.t == 0)
+		    || ($7.t == 0))
 		{
 		    $$.t = 0;
 		}
 		else
 		{
-		    if (($6.c != 0)				// statement not empty
-			&& (($6.c->kind() == YCode::ysVariable)
-			    || ($6.c->kind() == YCode::ysFunction)))
+		    if (($7.c != 0)				// statement not empty
+			&& (($7.c->kind() == YCode::ysVariable)
+			    || ($7.c->kind() == YCode::ysFunction)))
 		    {
-			yyLerror ("Declaration must be inside block", $6.l);
+			yyLerror ("Declaration must be inside block", $7.l);
 			$$.t = 0;
 		    }
 		    else
 		    {
-			$$.c = new YSWhile ($5.c, $6.c, $1.l);
+			$$.c = new YSWhile ($6.c, $7.c, $1.l);
 		    }
-		    if ($6.c == 0)
+		    if ($7.c == 0)
 		    {
 			yywarning("Empty statement after 'while'", $1.l);
 		    }
-		    $$.t = $6.t;
+		    $$.t = $7.t;
 		}
 		$$.l = $1.l;
 	    }
@@ -2205,15 +2138,16 @@ control_statement:
 		$$.c = new YSReturn ((YCodePtr)0, $1.l);
 		$$.l = $1.l;
 	    }
-|	RETURN expression ';'
+|	RETURN comment_before expression ';'
 	    {
-		if ($2.t == 0)
+		if ($3.t == 0)
 		{
 		   $$.t = 0;
 		   break;
 		}
-		$$.t = $2.t->isVoid() ? Type::Nil : $2.t;	// "return nil;" is of type 'Nil'
-		$$.c = new YSReturn ($2.c, $1.l);
+    $3.c->setCommentBefore($2.v.sval);
+		$$.t = $3.t->isVoid() ? Type::Nil : $3.t;	// "return nil;" is of type 'Nil'
+		$$.c = new YSReturn ($3.c, $1.l);
 		$$.l = $1.l;
 	    }
 |	SWITCH '(' expression ')'
@@ -3031,13 +2965,13 @@ assignment:
     $$.c->setCommentBefore($2.v.sval);
 		$$.l = $1.l;
 	    }
-|	identifier '[' list_elements ']' '=' expression
+|	identifier '[' list_elements ']' '=' comment_before expression
 	    {
 		$$.t = 0;				// default: error
 
 		if (($1.t == 0)
 		    || ($3.t == 0)
-		    || ($6.t == 0))
+		    || ($7.t == 0))
 		{
 		    break;
 		}
@@ -3048,7 +2982,9 @@ assignment:
 		    break;
 		}
 
-		check_void_assign (&($1), &($6));
+		check_void_assign (&($1), &($7));
+
+    $7.c->setCommentBefore($6.v.sval);
 
 		if (!$1.t->isList()
 		     && !$1.t->isMap()
@@ -3143,15 +3079,15 @@ assignment:
 			break;
 		    }
 
-		    int match = $6.t->match (cur);
+		    int match = $7.t->match (cur);
 		    if (match > 0)
 		    {
-			$6.c = new YEPropagate ($6.c, $6.t, cur);
+			$7.c = new YEPropagate ($7.c, $7.t, cur);
 			match = 0;
 		    }
 		    if (match != 0)
 		    {
-			yyTypeMismatch ("type mismatch in bracket assignment", cur, $6.t, $1.l);
+			yyTypeMismatch ("type mismatch in bracket assignment", cur, $7.t, $1.l);
 		    }
 #if 0
 		    if (index < params->count ())		// we hit a non-list/non-map before end of bracket
@@ -3163,7 +3099,7 @@ assignment:
 			$$.t = cur;
 		    }
 #endif
-		$$.c = new YSBracket ($1.v.tval->sentry(), $3.c, $6.c, $1.l);
+		$$.c = new YSBracket ($1.v.tval->sentry(), $3.c, $7.c, $1.l);
 		$$.t = Type::Unspec;
 		$$.l = $1.l;
 	    }
@@ -3248,7 +3184,7 @@ list:
 		$$.t = Type::ListUnspec;			// make it different from list(any) !
 		$$.l = $1.l;
 	    }
-|	'[' list_elements opt_comma ']'
+|	'[' list_elements opt_comma comment_before ']'
 	    {
 		if ($2.t == 0)
 		{
@@ -3359,10 +3295,10 @@ map:
 
 // $$.t == MapTypePtr()
 map_elements:
-	comment_before expression ':' expression
+	comment_before expression ':' comment_before expression
 	    {
 		if (($2.t == 0)
-		    || ($4.t == 0))
+		    || ($5.t == 0))
 		{
 		    $$.t = 0;
 		    break;
@@ -3376,10 +3312,11 @@ map_elements:
 		    break;
 		}
     $2.c->setCommentBefore($1.v.sval);
-		$$.c = new YEMap ($2.c, $4.c);
-		$$.t = MapTypePtr (new MapType ($2.t, $4.t));
+    $5.c->setCommentBefore($4.v.sval);
+		$$.c = new YEMap ($2.c, $5.c);
+		$$.t = MapTypePtr (new MapType ($2.t, $5.t));
 		$$.l = $2.l;
-    last_map_value_code = $4.c;
+    last_map_value_code = $5.c;
 	    }
 |	map_elements ','  opt_comment_after comment_before
     {
@@ -3387,11 +3324,11 @@ map_elements:
       last_map_value_code->setCommentAfter($4.v.sval);
       $$ = $1;
     }
-|	map_elements ','  opt_comment_after comment_before expression ':' expression
+|	map_elements ','  opt_comment_after comment_before expression ':' comment_before expression
 	    {
 		if (($1.t == 0)
 		    || ($5.t == 0)
-		    || ($7.t == 0))
+		    || ($8.t == 0))
 		{
 		    $$.t = 0;
 		    break;
@@ -3408,12 +3345,13 @@ map_elements:
 
     last_map_value_code->setCommentAfter($3.v.sval);
     $5.c->setCommentBefore($4.v.sval);
+    $8.c->setCommentBefore($7.v.sval);
 		constMapTypePtr mt = $1.t;
 		constTypePtr keytype = mt->keytype()->commontype ($5.t);
-		constTypePtr valuetype = mt->valuetype()->commontype ($7.t);
+		constTypePtr valuetype = mt->valuetype()->commontype ($8.t);
 		$$.t = MapTypePtr (new MapType (keytype, valuetype));
 
-		((YEMapPtr)$1.c)->attach ($5.c, $7.c);
+		((YEMapPtr)$1.c)->attach ($5.c, $8.c);
 		$$.c = $1.c;
 		$$.l = $1.l;
 	    }
