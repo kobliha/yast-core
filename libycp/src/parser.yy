@@ -3284,7 +3284,7 @@ map_elements:
       last_map_value_code->setCommentAfter($4.v.sval);
       $$ = $1;
     }
-|	map_elements ','  opt_comment_after comment_before expression ':' comment_before expression
+|	map_elements ','  opt_comment_after comment_before expression ':' comment_before expression comment_before
 	    {
 		if (($1.t == 0)
 		    || ($5.t == 0)
@@ -3306,6 +3306,7 @@ map_elements:
     last_map_value_code->setCommentAfter($3.v.sval);
     $5.c->setCommentBefore($4.v.sval);
     $8.c->setCommentBefore($7.v.sval);
+    $8.c->setCommentAfter($9.v.sval);
 		constMapTypePtr mt = $1.t;
 		constTypePtr keytype = mt->keytype()->commontype ($5.t);
 		constTypePtr valuetype = mt->valuetype()->commontype ($8.t);
@@ -3685,7 +3686,7 @@ parameters:
 		$$.t = $1.t;
 		$$.l = $1.l;
 	    }
-|	opt_comment_after comment_before expression
+|	opt_comment_after comment_before expression comment_before
 	    {
 #if DO_DEBUG
 		y2debug ("parameters: expression");
@@ -3718,6 +3719,7 @@ parameters:
 
     $3.c->setCommentBefore($2.v.sval);
     $3.c->setCommentBefore($1.v.sval);
+    $3.c->setCommentAfter($4.v.sval);
 		$$.c = $3.c;		// default return value
 		$$.t = $3.t;
 	    }
