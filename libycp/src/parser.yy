@@ -1119,6 +1119,7 @@ block:
 	    }
 	block_end
 	    {
+          if ($5.c)
     $5.c->setCommentBefore($2.v.sval);
 		$$ = $5;
 #if DO_DEBUG
