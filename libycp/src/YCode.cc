@@ -58,11 +58,16 @@ IMPL_DERIVED_POINTER(YFunction, YCode);
 
 YCode::YCode ()
 {
+  comment_before = comment_after = NULL;
 }
 
 
 YCode::~YCode ()
 {
+  if (comment_after != NULL)
+    delete[] comment_after;
+  if (comment_before != NULL)
+    delete[] comment_before;
 }
 
 
@@ -199,6 +204,16 @@ YCode::toStream (std::ostream & str) const
 
 
 std::ostream &
+YCode::commentToXml (std::ostream & str ) const
+{
+  if (comment_before != NULL)
+    str << " comment_before=\"" << Xmlcode::xmlify(comment_before) << "\"";
+  if (comment_after != NULL)
+    str << " comment_after=\"" << Xmlcode::xmlify(comment_after) << "\"";
+  return str;
+}
+
+std::ostream &
 YCode::toXml (std::ostream & str, int /*indent*/ ) const
 {
     ykind k = kind ();
@@ -227,6 +242,34 @@ constTypePtr
 YCode::type () const
 {
     return Type::Unspec;
+}
+
+void
+YCode::setCommentBefore (const char* comment)
+{
+  if (strlen(comment) > 0 )
+  {
+    if (comment_before && strlen(comment_before) > 0) // there is already something
+    {
+      char * newstr = new char[strlen(comment_before) + strlen(comment) + 1];
+      strcpy(newstr, comment);
+      strcat(newstr, comment_before);
+      delete[] comment_before;
+      delete[] comment;
+      comment_before = newstr;
+    }
+    else
+      comment_before = comment;
+  }
+  y2debug("set comment '%s' before for code %s", comment, toString().c_str());
+}
+
+void
+YCode::setCommentAfter (const char* comment)
+{
+  if (strlen(comment) > 0 )
+    comment_after = comment;
+  y2debug("set comment '%s' after for code %s", comment, toString().c_str());
 }
 
 // ------------------------------------------------------------------
