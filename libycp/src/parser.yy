@@ -85,6 +85,7 @@ struct yystype_type {
     tokenValue v;		// token (for scanner level syntax)
     constTypePtr t;		// type (NULL for error)
     int l;
+    std::string com;		// comment before the token
 };
 #define YYSTYPE yystype_type
 
@@ -143,6 +144,8 @@ static constTypePtr found_return_type = Type::Unspec;
 //! begin of a block
 //! @param type declared return type
 static YBlockPtr start_block (Parser *parser, constTypePtr type);
+
+static void attach_comment(YCodePtr code, const std::string& comment);
 
 extern "C" {
 int yylex (YYSTYPE *, void *);
@@ -1057,6 +1060,8 @@ block:
 	block_end
 	    {
 		$$ = $3;
+		attach_comment($$.c, $1.com + $2.com + $3.com);
+
 #if DO_DEBUG
 		y2debug ("block: (%s:%s)", $$.c ? $$.c->toString().c_str() : "<nil>", $$.t ? $$.t->toString().c_str() : "<ERR>");
 #endif
@@ -1625,6 +1630,7 @@ statement:
 		    break;
 		}
 		$$.c = $1.c;
+		attach_comment($$.c, $1.com);
 		$$.t = Type::Unspec;
 		$$.l = $1.l;
 	    }
@@ -3732,6 +3738,7 @@ int yylex(YYSTYPE *lvalp_void, void *void_pr)
 
 	tokenValue value   = currentScanner->scannedValue();
 	lvalp_void->v	   = value;
+	lvalp_void->com    = currentScanner->commentBefore();
 	pr->m_lineno	   = lvalp_void->l = currentScanner->lineNumber();
 
 	switch (token)
@@ -4459,6 +4466,23 @@ attach_parameter (Parser *parser, YCodePtr code, YYSTYPE *parm, YYSTYPE *parm1)
 #endif
     return t;
 }
+
+static
+void
+attach_comment(YCodePtr code, const std::string& comment)
+{
+    if (! code)
+	return;		    // FIXME probably attach it somewhere else
+    if (comment.empty())
+	return;
+
+    // YCode::setCommentBefore takes ownership of its param
+    // which should be new char[]
+    char * newstr = new char[comment.size() + 1];
+    strcpy(newstr, comment.c_str());
+    code->setCommentBefore(newstr);
+}
+
 
 
 //-------------------------------------------------------------------
