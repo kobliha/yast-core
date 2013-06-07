@@ -86,7 +86,7 @@ static tokenValue token_value;
    return (token);		    \
  } while(0)
 
-#define RESULT(type,token) do {   \
+#define VALUE_TOKEN(type,token) do {   \
    setScannedToken(token_value, type); \
    TOKEN(token);		       \
  } while (0)
@@ -157,7 +157,7 @@ SYMBOL ([[:alpha:]_][[:alnum:]_]+|[[:alpha:]][[:alnum:]_]*)
 	std::istringstream is(input);
 	is.imbue(std::locale::classic()); /* ensure that we use C locale for float parsing */
 	is >> token_value.fval;
-	RESULT (Type::ConstFloat, C_FLOAT);
+	VALUE_TOKEN (Type::ConstFloat, C_FLOAT);
     }
 
 	/* integer constant  */
@@ -165,7 +165,7 @@ SYMBOL ([[:alpha:]_][[:alnum:]_]+|[[:alpha:]][[:alnum:]_]*)
 [1-9][0-9]* {
 	debug_scanner("<int>");
 	token_value.ival = atoll (yytext);
-	RESULT (Type::ConstInteger, C_INTEGER);
+	VALUE_TOKEN (Type::ConstInteger, C_INTEGER);
     }
 
 	/* octal constant  */
@@ -173,7 +173,7 @@ SYMBOL ([[:alpha:]_][[:alnum:]_]+|[[:alpha:]][[:alnum:]_]*)
 0[0-7]* {
 	debug_scanner("<oct>");
 	sscanf (yytext, "%Lo", &(token_value.ival));
-	RESULT (Type::ConstInteger, C_INTEGER);
+	VALUE_TOKEN (Type::ConstInteger, C_INTEGER);
     }
 
 	/* wrong octal constant */
@@ -187,7 +187,7 @@ SYMBOL ([[:alpha:]_][[:alnum:]_]+|[[:alpha:]][[:alnum:]_]*)
 0x[0-9A-Fa-f]+ {
 	debug_scanner("<hex>");
 	sscanf (yytext, "0x%Lx", &(token_value.ival));
-	RESULT (Type::ConstInteger, C_INTEGER);
+	VALUE_TOKEN (Type::ConstInteger, C_INTEGER);
     }
     
 	/* wrong hexadecimal constant */
@@ -218,7 +218,7 @@ SYMBOL ([[:alpha:]_][[:alnum:]_]+|[[:alpha:]][[:alnum:]_]*)
 	long length = (long)(m_scandataBufferPtr - bytes);
 	memcpy (m_scandataBuffer, &length, sizeof (long));
 	token_value.cval = (unsigned char *)m_scandataBuffer;
-	RESULT (Type::ConstByteblock, C_BYTEBLOCK);
+	VALUE_TOKEN (Type::ConstByteblock, C_BYTEBLOCK);
     }
 
 	/* byteblock data  */
@@ -282,7 +282,7 @@ SYMBOL ([[:alpha:]_][[:alnum:]_]+|[[:alpha:]][[:alnum:]_]*)
 	BEGIN (INITIAL);
 	*m_scandataBufferPtr = '\0';
 	token_value.sval = Scanner::doStrdup (m_scandataBuffer);
-	RESULT (Type::ConstString, STRING);
+	VALUE_TOKEN (Type::ConstString, STRING);
     }
 
 	/* string octal character  */
@@ -377,19 +377,19 @@ SYMBOL ([[:alpha:]_][[:alnum:]_]+|[[:alpha:]][[:alnum:]_]*)
 
 nil {
 	debug_scanner("<nil>");
-	RESULT (Type::ConstVoid, C_VOID);
+	VALUE_TOKEN (Type::ConstVoid, C_VOID);
     }
 
 true  {
 	debug_scanner("<true>");
 	token_value.bval = true;
-	RESULT (Type::ConstBoolean, C_BOOLEAN);
+	VALUE_TOKEN (Type::ConstBoolean, C_BOOLEAN);
     }
 
 false  {
 	debug_scanner("<false>");
 	token_value.bval = false;
-	RESULT (Type::ConstBoolean, C_BOOLEAN);
+	VALUE_TOKEN (Type::ConstBoolean, C_BOOLEAN);
     }
 
  /* -- path  */
@@ -402,7 +402,7 @@ false  {
 	    logError ("dash behind path constant not allowed", LINE_VAR);
 	    TOKEN(SCANNER_ERROR);
 	}
-	RESULT (Type::ConstPath, C_PATH);
+	VALUE_TOKEN (Type::ConstPath, C_PATH);
     }
 
  /* ----------------------------------- */
@@ -466,18 +466,18 @@ selektieren	{ TOKEN(SELECT);	};
  /*	Type Keywords			*/
  /* ----------------------------------- */
 
-any		{ RESULT (Type::Any, C_TYPE);	};
-void		{ RESULT (Type::Void, C_TYPE); };
-boolean		{ RESULT (Type::Boolean, C_TYPE); };
-integer		{ RESULT (Type::Integer, C_TYPE); };
-float		{ RESULT (Type::Float, C_TYPE); };
-string		{ RESULT (Type::String, C_TYPE); };
-byteblock	{ RESULT (Type::Byteblock, C_TYPE); };
+any		{ VALUE_TOKEN (Type::Any, C_TYPE);	};
+void		{ VALUE_TOKEN (Type::Void, C_TYPE); };
+boolean		{ VALUE_TOKEN (Type::Boolean, C_TYPE); };
+integer		{ VALUE_TOKEN (Type::Integer, C_TYPE); };
+float		{ VALUE_TOKEN (Type::Float, C_TYPE); };
+string		{ VALUE_TOKEN (Type::String, C_TYPE); };
+byteblock	{ VALUE_TOKEN (Type::Byteblock, C_TYPE); };
  /* list, map are keywords and done by parser.yy  */
-locale		{ RESULT (Type::Locale, C_TYPE); };
-term		{ RESULT (Type::Term, C_TYPE); };
-path		{ RESULT (Type::Path, C_TYPE); };
-symbol		{ RESULT (Type::Symbol, C_TYPE); };
+locale		{ VALUE_TOKEN (Type::Locale, C_TYPE); };
+term		{ VALUE_TOKEN (Type::Term, C_TYPE); };
+path		{ VALUE_TOKEN (Type::Path, C_TYPE); };
+symbol		{ VALUE_TOKEN (Type::Symbol, C_TYPE); };
 
  /* common mistyped names  */
 int	{ logError ("Seen 'int', use 'integer' instead", LINE_VAR); TOKEN(SCANNER_ERROR); };
@@ -493,7 +493,7 @@ bool	{ logError ("Seen 'bool', use 'boolean' instead", LINE_VAR); TOKEN(SCANNER_
 \`{SYMBOL} {
 	debug_scanner("<`symbol>");
 	token_value.yval = Scanner::doStrdup (yytext + 1);
-	RESULT (Type::ConstSymbol, C_SYMBOL);
+	VALUE_TOKEN (Type::ConstSymbol, C_SYMBOL);
     }
 
  /* -- double quoted symbol  */
@@ -714,19 +714,19 @@ bool	{ logError ("Seen 'bool', use 'boolean' instead", LINE_VAR); TOKEN(SCANNER_
 	    case SymbolEntry::c_builtin:
 	    {
 		token_value.tval = tentry;
-		RESULT (tentry->sentry()->type(), IDENTIFIER);
+		VALUE_TOKEN (tentry->sentry()->type(), IDENTIFIER);
 	    }
 	    break;
 	    case SymbolEntry::c_typedef:
 	    {
-		RESULT (tentry->sentry()->type(), C_TYPE);
+		VALUE_TOKEN (tentry->sentry()->type(), C_TYPE);
 	    }
 	    break;
 	    case SymbolEntry::c_const:
 	    {
 		// FIXME
 		token_value.sval = Scanner::doStrdup (yytext);
-		RESULT (Type::ConstString, STRING);
+		VALUE_TOKEN (Type::ConstString, STRING);
 	    }
 	    break;
 	}
@@ -759,7 +759,7 @@ if (tentry!=0) y2debug ("'%s' is global", yytext);
 	{
 	    debug_scanner("<Symbol(%s)>", yytext);
 	    token_value.nval = Scanner::doStrdup (yytext);
-	    RESULT (Type::Unspec, SYMBOL);	// symbol of unknown type
+	    VALUE_TOKEN (Type::Unspec, SYMBOL);	// symbol of unknown type
 	}
 	token_value.tval = tentry;
 	switch (tentry->sentry()->category())
@@ -770,13 +770,13 @@ if (tentry!=0) y2debug ("'%s' is global", yytext);
 	    {
 		y2debug ("<Symbol equals module(%s@%p)>", yytext, tentry);
 		token_value.nval = Scanner::doStrdup (yytext);
-		RESULT (Type::Unspec, SYMBOL);	// symbol of unknown type
+		VALUE_TOKEN (Type::Unspec, SYMBOL);	// symbol of unknown type
 	    }
 	    break;
 	    case SymbolEntry::c_typedef:
 	    {
 		y2debug ("<Typedef(%s@%p)>", yytext, tentry);
-		RESULT (tentry->sentry()->type(), C_TYPE);
+		VALUE_TOKEN (tentry->sentry()->type(), C_TYPE);
 	    }
 	    break;
 	    case SymbolEntry::c_const:
@@ -784,14 +784,14 @@ if (tentry!=0) y2debug ("'%s' is global", yytext);
 		y2debug ("<Const(%s@%p)>", yytext, tentry);
 		// FIXME
 		token_value.sval = Scanner::doStrdup (yytext);
-		RESULT (Type::ConstString, STRING);
+		VALUE_TOKEN (Type::ConstString, STRING);
 	    }
 	    break;
 	    case SymbolEntry::c_namespace:
 	    {
 		y2debug ("<Namespace(%s@%p)>", yytext, tentry);
 		token_value.tval = tentry;
-		RESULT (tentry->sentry()->type(), SYM_NAMESPACE);
+		VALUE_TOKEN (tentry->sentry()->type(), SYM_NAMESPACE);
 	    }
 	    break;
 	    case SymbolEntry::c_unspec:
@@ -804,7 +804,7 @@ if (tentry!=0) y2debug ("'%s' is global", yytext);
 	    {
 		y2debug ("<identifier(%s@%p)>", yytext, tentry);
 		token_value.tval = tentry;
-		RESULT (tentry->sentry()->type(), IDENTIFIER);
+		VALUE_TOKEN (tentry->sentry()->type(), IDENTIFIER);
 	    }
 	    break;
 	    case SymbolEntry::c_filename:
@@ -849,19 +849,19 @@ if (tentry!=0) y2debug ("'%s' is global", yytext);
 	    case SymbolEntry::c_builtin:
 	    {
 		token_value.tval = tentry;
-		RESULT (tentry->sentry()->type(), IDENTIFIER);
+		VALUE_TOKEN (tentry->sentry()->type(), IDENTIFIER);
 	    }
 	    break;
 	    case SymbolEntry::c_typedef:
 	    {
-		RESULT (tentry->sentry()->type(), C_TYPE);
+		VALUE_TOKEN (tentry->sentry()->type(), C_TYPE);
 	    }
 	    break;
 	    case SymbolEntry::c_const:
 	    {
 		// FIXME
 		token_value.sval = Scanner::doStrdup (name);
-		RESULT (Type::ConstString, STRING);
+		VALUE_TOKEN (Type::ConstString, STRING);
 	    }
 	    break;
 	    case SymbolEntry::c_filename:
