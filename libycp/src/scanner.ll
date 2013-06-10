@@ -80,6 +80,8 @@ static tokenValue token_value;
    saved_comment += text;
  }
 
+ // TODO: detect that we've given the parser a comment
+ // that was ignored by the parser
 #define TOKEN(token) do {	    \
    setCommentBefore(saved_comment); \
    saved_comment = "";		    \
