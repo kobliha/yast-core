@@ -203,14 +203,22 @@ YCode::toStream (std::ostream & str) const
 }
 
 
+std::string
+YCode::commentToXml () const
+{
+  string x;
+  if (comment_before != NULL)
+    x += " comment_before=\"" + Xmlcode::xmlify(comment_before) + '"';
+  if (comment_after != NULL)
+    x += " comment_after=\""  + Xmlcode::xmlify(comment_after)  + '"';
+
+  return x;
+}
+
 std::ostream &
 YCode::commentToXml (std::ostream & str ) const
 {
-  if (comment_before != NULL)
-    str << " comment_before=\"" << Xmlcode::xmlify(comment_before) << "\"";
-  if (comment_after != NULL)
-    str << " comment_after=\"" << Xmlcode::xmlify(comment_after) << "\"";
-  return str;
+  return str << commentToXml();
 }
 
 std::ostream &
@@ -454,7 +462,9 @@ YConst::toXml (std::ostream & str, int /*indent*/ ) const
     }
     if (m_value.isNull())
 	return str << "<null/>";
+    str << "<yconst" << commentToXml() << '>';
     m_value->toXml (str, 0 );
+    str << "</yconst>";
     return str;
 }
 

@@ -206,7 +206,12 @@ public:
 
 
     /**
-     * Writes comment attributes to xml element
+     * \return comments as xml fragment:
+     *   ' comment_before="..." comment_after="..."'
+     */
+    std::string commentToXml () const;
+    /**
+     * Writes comment attributes to a xml stream
      */
     std::ostream & commentToXml (std::ostream & str ) const;
 

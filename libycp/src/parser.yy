@@ -3904,6 +3904,7 @@ function_name:
 		$$.c = $1.c;
 		$$.t = Type::Symbol;
 		$$.l = $1.l;
+                $$.com = $1.com;
 	    }
 ;
 
