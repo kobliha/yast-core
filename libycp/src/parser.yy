@@ -110,7 +110,6 @@ static void yyerror_with_file		(Parser *parser, int lineno, const char *s);
 static void yyerror_with_tableentry	(Parser *parser, int lineno, const char *s, TableEntry *entry);
 static void yywarning_with_tableentry	(Parser *parser, int lineno, TableEntry *entry);
 static void yyerror_type_mismatch	(Parser *parser, int lineno, const char *s, constTypePtr expected_type, constTypePtr seen_type);
-static void yyerror_missing_argument	(Parser *parser, int lineno, constTypePtr type);
 static void yyerror_assign_const	(Parser *parser, int lineno, const char *s);
 static void yyerror_cant_cast		(Parser *parser, int lineno, constTypePtr from, constTypePtr to);
 static void yyerror_no_module		(Parser *parser, int lineno, const char *module);
@@ -127,7 +126,6 @@ static void yyerror_no_module		(Parser *parser, int lineno, const char *module);
 #define yyTerror(text,lineno,tentry)		yyerror_with_tableentry (p_parser, lineno, text, tentry)
 #define yyTwarning(tentry)			yywarning_with_tableentry (p_parser, 0, tentry)
 #define yyTypeMismatch(text,expected,seen,lineno)	yyerror_type_mismatch (p_parser, lineno, text, expected, seen)
-#define yyMissingArgument(type,lineno)		yyerror_missing_argument (p_parser, lineno, type)
 #define yyCantCast(from,to,lineno)		yyerror_cant_cast (p_parser, lineno, from, to)
 #define yyNoModule(module,lineno)		yyerror_no_module (p_parser, lineno, module)
 
@@ -3950,14 +3948,6 @@ yyerror_type_mismatch (Parser *parser, int lineno, const char *s, constTypePtr e
     {
 	parser->scanner()->logError ("Expected '%s', seen '%s'.", linenumber, expected_type->toString().c_str(), seen_type->toString().c_str());
     }
-}
-
-
-static void
-yyerror_missing_argument (Parser *parser, int lineno, constTypePtr type)
-{
-    parser->m_parser_errors++;
-    parser->scanner()->logError ("Missing '%s' parameter.", lineno, type->toString().c_str());
 }
 
 
