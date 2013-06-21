@@ -77,7 +77,8 @@ static tokenValue token_value;
  static std::string saved_comment;
 
  void save_comment(const char *text) {
-   saved_comment += text;
+   if (getenv("Y2PARSECOMMENTS"))
+     saved_comment += text;
  }
 
  // TODO: detect that we've given the parser a comment
