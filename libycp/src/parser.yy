@@ -188,7 +188,7 @@ static void attach_comment_after(YCodePtr code, const std::string& comment);
 // difficult to handle by y2r, so then we would modify these
 // macros to ignore the destination and attach to $$ instead.
 
-// attach comment from a terminal to the FOLLOWING YCode
+// attach comment from a terminal to the FOLLOWING YCode ( decrease by one is intention as it reverse order on stack )
 #define TOKEN_COMMENT(source_dollar) \
     attach_comment((&(source_dollar) - 1)->c , source_dollar.com)
 // attach comment from a terminal to an arbitrary nonterminal;
