@@ -132,7 +132,10 @@ SYMBOL ([[:alpha:]_][[:alnum:]_]+|[[:alpha:]][[:alnum:]_]*)
 	save_comment(yytext);
 	BEGIN (INITIAL);
     }
-<comment>. {
+<comment>\* {
+	save_comment(yytext);
+    }
+<comment>[^*]* {
 	save_comment(yytext);
     }
 
@@ -143,8 +146,11 @@ SYMBOL ([[:alpha:]_][[:alnum:]_]+|[[:alpha:]][[:alnum:]_]*)
 
 \n				{ /* Ignore newlines  */
 				  INC_LINE;
+          save_comment(yytext);
 				}
-[\f\t\r\v ]+			{ /* Ignore Whitespaces according to isspace(3) */ }
+[\f\t\r\v ]+			{ /* Ignore Whitespaces according to isspace(3) */ 
+          save_comment(yytext);
+}
 
 
  /* ----------------------------------- */

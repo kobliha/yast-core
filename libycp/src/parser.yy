@@ -208,11 +208,11 @@ static void attach_comment_after(YCodePtr code, const std::string& comment);
 #define TREE_RULE_COMMENT(source_dollar) \
   attach_comment((yyval).c , "" /*source_dollar.c->commentBefore()*/ ) // FIXME commentAfter too
 
-// attach comment from a terminal to the PRECEDING YCode
+// attach comment from a terminal to the last YCode
 // (because the terminal is the last symbol in its rule,
 // usually some kind of closing brace)
 #define LAST_TOKEN_COMMENT(source_dollar) \
-    attach_comment_after((&(source_dollar) + 1)->c , source_dollar.com)
+    attach_comment_after(last_code, source_dollar.com)
 
 extern "C" {
 int yylex (YYSTYPE *, void *);
@@ -3712,11 +3712,13 @@ function_call:
 		{
 		    break;
 		}
+		attach_comment($$.c, $1.com + $2.com + $3.com + $4.com + $5.com);
 		$$.l = $1.l;
                 RULE_COMMENT($1);
                 RULE_COMMENT($2);
                 // parameters will attach to us via $0
                 LAST_TOKEN_COMMENT($5);
+    last_code = $$.c;
 
 #if DO_DEBUG
 		y2debug ("fcall (%s:%s)", $$.t->toString().c_str(), $$.c->toString().c_str());
@@ -4731,19 +4733,21 @@ attach_comment(YCodePtr code, const std::string& comment)
 	return;		    // FIXME probably attach it somewhere else
     if (comment.empty())
 	return;
+    string comment_before;
     if (last_code)
     {
-      size_t first_endl = comment.find_first_of('\n');
+      size_t first_endl = comment.find('\n');
       if (first_endl != string::npos)
       {
-        attach_comment_after(last_code, comment.substr(0, first_endl -1));
-        comment = comment.substr(first_endl+1);
+        attach_comment_after(last_code, comment.substr(0, first_endl));
+        comment_before = comment.substr(first_endl+1);
       }
-    }
+    } else
+      comment_before = comment;
     // YCode::setCommentBefore takes ownership of its param
     // which should be new char[]
-    char * newstr = new char[comment.size() + 1];
-    strcpy(newstr, comment.c_str());
+    char * newstr = new char[comment_before.size() + 1];
+    strcpy(newstr, comment_before.c_str());
     code->setCommentBefore(newstr);
 }
 
