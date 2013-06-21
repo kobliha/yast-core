@@ -174,6 +174,7 @@ static YBlockPtr start_block (Parser *parser, constTypePtr type);
 
   Comments on types are passed in YYSTYPE.com.
  */
+static YCodePtr last_code;
 static void attach_comment(YCodePtr code, const std::string& comment);
 static void attach_comment_after(YCodePtr code, const std::string& comment);
 // some parser rules do not produce an YCode but we need one to attach
@@ -4730,7 +4731,15 @@ attach_comment(YCodePtr code, const std::string& comment)
 	return;		    // FIXME probably attach it somewhere else
     if (comment.empty())
 	return;
-
+    if (last_code)
+    {
+      size_t first_endl = comment.find_first_of('\n');
+      if (first_endl != string::npos)
+      {
+        attach_comment_after(last_code, comment.substr(0, first_endl -1));
+        comment = comment.substr(first_endl+1);
+      }
+    }
     // YCode::setCommentBefore takes ownership of its param
     // which should be new char[]
     char * newstr = new char[comment.size() + 1];
