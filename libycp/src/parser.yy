@@ -3711,8 +3711,6 @@ function_call:
 		{
 		    break;
 		}
-
-		attach_comment($$.c, $1.com + $2.com + $3.com + $4.com + $5.com);
 		$$.l = $1.l;
                 RULE_COMMENT($1);
                 RULE_COMMENT($2);
