@@ -159,7 +159,6 @@ static YBlockPtr start_block (Parser *parser, constTypePtr type);
   (unlike file names and line numbers). However, we need them when translating
   the YCP code to Ruby, via YCode::toXml.
 
-  TODO!
   They are only processed when the environment variable Y2PARSECOMMENTS is set.
 
   In the grammar rules we move the comments from the scanner tokens
@@ -1209,6 +1208,7 @@ block:
 	    {
                 TOKEN_COMMENT_TO($1, $3);
 		$$ = $3;
+    last_code = $$.c;
 #if DO_DEBUG
 		y2debug ("block: (%s:%s)", $$.c ? $$.c->toString().c_str() : "<nil>", $$.t ? $$.t->toString().c_str() : "<ERR>");
 #endif
@@ -2508,7 +2508,7 @@ definition:
 		    {
 			$$.c = new YSVariable (tentry->sentry(), $3.c, $1.l);
 			sentry->setCode($3.c);
-                        RULE_COMMENT($1);
+//                        RULE_COMMENT($1);
                         RULE_COMMENT($2);
                         LAST_TOKEN_COMMENT($4);
 		    }
@@ -2520,6 +2520,7 @@ definition:
 
 		$$.l = $1.l;
 		$$.t = Type::Unspec;
+    last_code = $$.c;
 	    }
 ;
 
@@ -3040,6 +3041,7 @@ assignment:
 		$$.l = $1.l;
                 RULE_COMMENT($1);
                 TOKEN_COMMENT($2);
+                last_code = $$.c;
 	    }
 |	identifier '[' list_elements ']' '=' expression
 	    {
@@ -3712,7 +3714,6 @@ function_call:
 		{
 		    break;
 		}
-		attach_comment($$.c, $1.com + $2.com + $3.com + $4.com + $5.com);
 		$$.l = $1.l;
                 RULE_COMMENT($1);
                 RULE_COMMENT($2);
