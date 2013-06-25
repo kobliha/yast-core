@@ -77,9 +77,11 @@ class YCode : public Rep
   , public MemUsage
 #endif
 {
+protected:
+    mutable const char * comment_before;
+    mutable const char * comment_after;
+
 private:
-    const char * comment_before;
-    const char * comment_after;
     REP_BODY(YCode);
 
 public:

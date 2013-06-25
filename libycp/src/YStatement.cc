@@ -259,11 +259,13 @@ YSExpression::toStream (std::ostream & str) const
 std::ostream &
 YSExpression::toXml( std::ostream & str, int indent ) const
 {
-    str << "<expr";
-    commentToXml(str);
-    str << ">";
+    if (comment_before)
+      m_expr->setCommentBefore(comment_before);
+    if (comment_after)
+      m_expr->setCommentAfter(comment_after);
     m_expr->toXml( str, indent );
-    return str << "</expr>";
+    comment_after = comment_before = NULL;
+    return str;
 }
 
 

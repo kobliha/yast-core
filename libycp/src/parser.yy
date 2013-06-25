@@ -173,7 +173,6 @@ static YBlockPtr start_block (Parser *parser, constTypePtr type);
 
   Comments on types are passed in YYSTYPE.com.
  */
-static YCodePtr last_code;
 static void attach_comment(YCodePtr code, const std::string& comment);
 static void attach_comment_after(YCodePtr code, const std::string& comment);
 // some parser rules do not produce an YCode but we need one to attach
@@ -189,7 +188,7 @@ static void attach_comment_after(YCodePtr code, const std::string& comment);
 
 // attach comment from a terminal to the FOLLOWING YCode ( decrease by one is intention as it reverse order on stack )
 #define TOKEN_COMMENT(source_dollar) \
-    attach_comment((&(source_dollar) - 1)->c , source_dollar.com); last_code = (&(source_dollar) - 1)->c
+    attach_comment((&(source_dollar) + 1)->c , source_dollar.com)
 // attach comment from a terminal to an arbitrary nonterminal;
 // This is needed when the following nonterminal does not have an YCode;
 // Example: "type" in "'(' type ')' castable_expression"
@@ -200,18 +199,13 @@ static void attach_comment_after(YCodePtr code, const std::string& comment);
 // attach comment from a terminal to the resulting YCode
 // (used when there is no suitable neighboring ycode inside)
 #define RULE_COMMENT(source_dollar) \
-  attach_comment((yyval).c , source_dollar.com); last_code = (yyval).c // (yyval is $$)
-
-// copy comment from one YCode to another.
-// That is needed because of constant expression elimination in the parser
-#define TREE_RULE_COMMENT(source_dollar) \
-  attach_comment((yyval).c , "" /*source_dollar.c->commentBefore()*/ ) // FIXME commentAfter too
+  attach_comment((yyval).c , source_dollar.com) // (yyval is $$)
 
 // attach comment from a terminal to the last YCode
 // (because the terminal is the last symbol in its rule,
 // usually some kind of closing brace)
 #define LAST_TOKEN_COMMENT(source_dollar) \
-    attach_comment_after((&(source_dollar) + 1)->c, source_dollar.com)
+    attach_comment_after((&(source_dollar) - 1)->c, source_dollar.com)
 
 extern "C" {
 int yylex (YYSTYPE *, void *);
@@ -589,7 +583,6 @@ bracket_expression:
 #if DO_DEBUG
 		    y2debug ("detailed type '%s'", $$.t->toString().c_str());
 #endif
-    last_code = $$.c;
 		}
 	    }
 ;
@@ -635,7 +628,6 @@ casted_expression:
 
 	    $$.t = $2.t;
 	    $$.l = $4.l;
-    last_code = $$.c;
 	}
 ;
 
@@ -665,7 +657,6 @@ compact_expression:
 		    && $$.c == 0)				// empty block
 		{
 		    $$.c = new YConst (YCode::ycVoid, YCPVoid());
-    last_code = $$.c;
                     // comment of } of the empty block
                     TOKEN_COMMENT_TO($$, $$);
 
@@ -736,7 +727,6 @@ compact_expression:
                     TOKEN_COMMENT($4);
                     TOKEN_COMMENT($6);
                     LAST_TOKEN_COMMENT($8);
-    last_code = $$.c;
 		}
 		$$.l = $1.l;
 	    }
@@ -807,7 +797,6 @@ compact_expression:
                     y2debug ("detailed type '%s'", $$.t->toString().c_str());
 #endif
                     // 1:select 2:( 3:expr 4:, 5:expr 6:, 7:expr 8:)
-    last_code = $$.c;
                     RULE_COMMENT($1);
                     TOKEN_COMMENT($2);
                     TOKEN_COMMENT($4);
@@ -823,7 +812,6 @@ compact_expression:
 |	'(' expression ')'
 	    {
 		$$ = $2;
-    last_code = $$.c;
                 TOKEN_COMMENT($1);
                 LAST_TOKEN_COMMENT($3);
 	    }
@@ -836,7 +824,6 @@ compact_expression:
 		}
 		$$.c = new YEReturn ($2.c);
 		$$.t = BlockTypePtr ( new BlockType ($2.t));
-    last_code = $$.c;
                 TOKEN_COMMENT($1);
                 LAST_TOKEN_COMMENT($3);
 	    }
@@ -850,7 +837,6 @@ compact_expression:
 		$$.c = new YEIs ($3.c, $5.t);
 		$$.t = Type::Boolean;
 		$$.l = $1.l;
-    last_code = $$.c;
                 RULE_COMMENT($1);
                 TOKEN_COMMENT($2);
                 RULE_COMMENT($4);
@@ -870,7 +856,6 @@ compact_expression:
 		$$.c = new YConst (YCode::ycString, YCPString (p_parser->m_block_stack->textdomain));
 		$$.t = Type::String;
 		$$.l = $1.l;
-    last_code = $$.c;
                 RULE_COMMENT($1);
 	    }
 |	I18N string ',' string ',' expression ')'
@@ -905,9 +890,7 @@ compact_expression:
                 RULE_COMMENT($3);
                 RULE_COMMENT($4);
                 RULE_COMMENT($5);
-    last_code = $6.c;
                 LAST_TOKEN_COMMENT($7);
-    last_code = $$.c;
 	    }
 |	I18N string ')'
 	    {
@@ -941,7 +924,6 @@ compact_expression:
                     RULE_COMMENT($1);
                     RULE_COMMENT($2);
                     RULE_COMMENT($3);
-    last_code = $$.c;
                 }
 		$$.l = $1.l;
 	    }
@@ -964,7 +946,6 @@ compact_expression:
 #endif
 		    $$.l = $1.l;
                     RULE_COMMENT($1);
-    last_code = $$.c;
 		}
 	    }
 
@@ -982,43 +963,36 @@ infix_expression:
 	    {
 		check_binary_op (&($$), &($1), "+", &($3));
                 TOKEN_COMMENT($2);
-    last_code = $$.c;
 	    }
 |	expression '-' expression
 	    {
 		check_binary_op (&($$), &($1), "-", &($3));
                 TOKEN_COMMENT($2);
-    last_code = $$.c;
 	    }
 |	expression '*' expression
 	    {
 		check_binary_op (&($$), &($1), "*", &($3));
                 TOKEN_COMMENT($2);
-    last_code = $$.c;
 	    }
 |	expression '/' expression
 	    {
 		check_binary_op (&($$), &($1), "/", &($3));
                 TOKEN_COMMENT($2);
-    last_code = $$.c;
 	    }
 |	expression '%' expression
 	    {
 		check_binary_op (&($$), &($1), "%", &($3));
                 TOKEN_COMMENT($2);
-    last_code = $$.c;
 	    }
 |	expression LEFT expression
 	    {
 		check_binary_op (&($$), &($1), "<<", &($3));
                 TOKEN_COMMENT($2);
-    last_code = $$.c;
 	    }
 |	expression RIGHT expression
 	    {
 		check_binary_op (&($$), &($1), ">>", &($3));
                 TOKEN_COMMENT($2);
-    last_code = $$.c;
 	    }
 |	expression '&' expression
 	    {
@@ -1088,7 +1062,7 @@ infix_expression:
 		    break;
 		}
 
-		if ($2.c->isConstant())
+		if ($2.c->isConstant() && !getenv("Y2PARSECOMMENTS"))
 		{
 		    YConstPtr c = (YConstPtr)$2.c;
 		    if (c->kind() == YCode::ycBoolean)
@@ -1096,7 +1070,6 @@ infix_expression:
 			$$.c = new YConst (YCode::ycBoolean, YCPBoolean (!(c->value()->asBoolean()->value())));
 			$$.t = Type::Boolean;
 			$$.l = $1.l;
-                        TREE_RULE_COMMENT($2);
 		    }
 		    else
 		    {
@@ -1118,7 +1091,7 @@ infix_expression:
 		    break;
 		}
 
-		if ($2.c->isConstant())
+		if ($2.c->isConstant() && !getenv("Y2PARSECOMMENTS"))
 		{
 		    YConstPtr c = (YConstPtr)$2.c;
 		    if (c->kind() == YCode::ycInteger)
@@ -1126,14 +1099,12 @@ infix_expression:
 			$$.c = new YConst (YCode::ycInteger, YCPInteger (-(c->value()->asInteger()->value())));
 			$$.t = Type::Integer;
 			$$.l = $1.l;
-                        TREE_RULE_COMMENT($2);
 		    }
 		    else if ($2.c->kind() == YCode::ycFloat)
 		    {
 			$$.c = new YConst (YCode::ycFloat, YCPFloat (-(c->value()->asFloat()->value())));
 			$$.t = Type::Float;
 			$$.l = $1.l;
-                        TREE_RULE_COMMENT($2);
 		    }
 		    else
 		    {
@@ -1162,19 +1133,15 @@ infix_expression:
 		    yyTypeMismatch ("Expression before '?' must be boolean", Type::Boolean, $1.t, $1.l);
 		    $$.t = 0;
 		}
-		else if ($1.c->kind() == YCode::ycBoolean)
+		else if ($1.c->kind() == YCode::ycBoolean && !getenv("Y2PARSECOMMENTS"))
 		{
 		    if ($1.c->evaluate (true)->asBoolean()->value() == true)
 		    {
 			$$.c = $3.c;
-                        TOKEN_COMMENT($2);
-                        TREE_RULE_COMMENT($3);
 		    }
 		    else
 		    {
 			$$.c = $5.c;
-                        TOKEN_COMMENT($4);
-                        TREE_RULE_COMMENT($5);
 		    }
 		}
 		else
@@ -1228,7 +1195,6 @@ block:
 	    {
                 TOKEN_COMMENT_TO($1, $3);
 		$$ = $3;
-    last_code = $$.c;
 #if DO_DEBUG
 		y2debug ("block: (%s:%s)", $$.c ? $$.c->toString().c_str() : "<nil>", $$.t ? $$.t->toString().c_str() : "<ERR>");
 #endif
@@ -2541,7 +2507,6 @@ definition:
 
 		$$.l = $1.l;
 		$$.t = Type::Unspec;
-    last_code = $$.c;
 	    }
 ;
 
@@ -3062,7 +3027,6 @@ assignment:
 		$$.l = $1.l;
                 RULE_COMMENT($1);
                 TOKEN_COMMENT($2);
-                last_code = $$.c;
 	    }
 |	identifier '[' list_elements ']' '=' expression
 	    {
@@ -3393,7 +3357,6 @@ map_elements:
 		$$.t = MapTypePtr (new MapType ($1.t, $3.t));
 		$$.l = $1.l;
     TOKEN_COMMENT($2);
-    last_code = $3.c;
 	    }
 |	map_elements ',' expression ':' expression
 	    {
@@ -3424,7 +3387,6 @@ map_elements:
 		$$.l = $1.l;
     TOKEN_COMMENT($2);
     TOKEN_COMMENT($4);
-    last_code = $5.c;
 	    }
 ;
 
@@ -3745,7 +3707,6 @@ function_call:
                 RULE_COMMENT($2);
                 // parameters will attach to us via $0
                 LAST_TOKEN_COMMENT($5);
-    last_code = $$.c;
 
 #if DO_DEBUG
 		y2debug ("fcall (%s:%s)", $$.t->toString().c_str(), $$.c->toString().c_str());
@@ -4289,7 +4250,6 @@ i_check_unary_op (YYSTYPE *result, YYSTYPE *e1, const char *op, Parser* p)
     result->t = ((constFunctionTypePtr)(decl->type))->returnType ();
     result->l = e1->l;
 
-    last_code = result->c;
 #if DO_DEBUG
     y2debug ("check_unary_op (%s/%s) good (ret = %s)", op, e1->t->toString().c_str(), result->t->toString().c_str());
 #endif
@@ -4396,7 +4356,6 @@ i_check_binary_op (YYSTYPE *result, YYSTYPE *e1, const char *op, YYSTYPE *e2, Pa
 	result->t = cft->returnType ();
 	result->l = e1->l;
     }
-    last_code = result->c;
 
 #if DO_DEBUG
     y2debug ("i_check_binary_op (%s/%s/%s) good (ret = '%s')", e1->t->toString().c_str(), op, e2->t->toString().c_str(), result->t->toString().c_str());
@@ -4465,8 +4424,6 @@ i_check_compare_op (YYSTYPE *result, YYSTYPE *e1, YECompare::c_op op, YYSTYPE *e
     result->c = new YECompare (e1->c, op, e2->c);
     result->t = Type::Boolean;
     result->l = e1->l;
-
-    last_code = result->c;
 
 #if DO_DEBUG
     y2debug ("check_compare_op '%s'", result->c->toString().c_str());
@@ -4767,22 +4724,10 @@ attach_comment(YCodePtr code, const std::string& comment)
     }
     if (comment.empty())
 	return;
-    string comment_before;
-    y2debug("last code %s", last_code ? "yes" : "no" );
-    if (last_code)
-    {
-      size_t first_endl = comment.find('\n');
-      if (first_endl != string::npos)
-      {
-        attach_comment_after(last_code, comment.substr(0, first_endl));
-        comment_before = comment.substr(first_endl+1);
-      }
-    } else
-      comment_before = comment;
     // YCode::setCommentBefore takes ownership of its param
     // which should be new char[]
-    char * newstr = new char[comment_before.size() + 1];
-    strcpy(newstr, comment_before.c_str());
+    char * newstr = new char[comment.size() + 1];
+    strcpy(newstr, comment.c_str());
     code->setCommentBefore(newstr);
 }
 
